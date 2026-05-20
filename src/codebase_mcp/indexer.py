@@ -24,6 +24,7 @@ CHUNK_LINES = 100
 OVERLAP_LINES = 20
 MIN_LINES_FOR_SPLIT = 20
 BATCH_SIZE = 100
+MAX_CHUNK_CHARS = 32_000  # text-embedding-3-small limit is 8191 tokens (~4 chars/token)
 
 
 def iter_files(repo_path: Path):
@@ -39,7 +40,7 @@ def chunk_file(content: str, filepath: str, repo_path: str) -> list[dict]:
     lines = content.splitlines()
     if len(lines) < MIN_LINES_FOR_SPLIT:
         return [{
-            "text": content,
+            "text": content[:MAX_CHUNK_CHARS],
             "file": filepath,
             "start_line": 1,
             "end_line": len(lines),
@@ -52,8 +53,9 @@ def chunk_file(content: str, filepath: str, repo_path: str) -> list[dict]:
         chunk_lines = lines[i:i + CHUNK_LINES]
         if not any(line.strip() for line in chunk_lines):
             continue
+        text = "\n".join(chunk_lines)[:MAX_CHUNK_CHARS]
         chunks.append({
-            "text": "\n".join(chunk_lines),
+            "text": text,
             "file": filepath,
             "start_line": i + 1,
             "end_line": i + len(chunk_lines),
