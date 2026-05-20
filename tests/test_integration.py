@@ -12,11 +12,11 @@ def _fake_embedding(size: int = 1536) -> list[float]:
     return [0.1] * size
 
 
-def _mock_openai_for_index(chunk_count: int):
+def _mock_openai_for_index():
     mock = MagicMock()
-    mock.embeddings.create.return_value.data = [
-        MagicMock(embedding=_fake_embedding()) for _ in range(chunk_count)
-    ]
+    mock.embeddings.create.side_effect = lambda model, input: MagicMock(
+        data=[MagicMock(embedding=_fake_embedding()) for _ in input]
+    )
     return mock
 
 
@@ -32,14 +32,14 @@ def test_index_and_search(fixture_repo, tmp_path):
     from codebase_mcp.searcher import search
 
     with patch("codebase_mcp.indexer.OpenAI") as MockIdx:
-        MockIdx.return_value = _mock_openai_for_index(100)
+        MockIdx.return_value = _mock_openai_for_index()
         count = index_repo(str(fixture_repo))
 
     assert count > 0
 
     with patch("codebase_mcp.searcher.OpenAI") as MockSearch:
         MockSearch.return_value = _mock_openai_for_search()
-        result = search("authentication token")
+        result = search("authentication token", repo_path=str(fixture_repo.resolve()))
 
     assert "auth.py" in result
     assert "lines" in result
@@ -51,7 +51,7 @@ def test_reindex_clears_old(fixture_repo, tmp_path):
     from codebase_mcp.store import load_config
 
     with patch("codebase_mcp.indexer.OpenAI") as MockIdx:
-        MockIdx.return_value = _mock_openai_for_index(100)
+        MockIdx.return_value = _mock_openai_for_index()
         first_count = index_repo(str(fixture_repo))
         second_count = index_repo(str(fixture_repo))
 
