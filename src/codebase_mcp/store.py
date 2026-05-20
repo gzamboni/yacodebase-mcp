@@ -35,7 +35,10 @@ def load_config() -> dict:
     path = _config_path()
     if not path.exists():
         return {}
-    return json.loads(path.read_text())
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {}
 
 
 def save_config(config: dict) -> None:
@@ -58,6 +61,7 @@ def add_repo(repo_path: str, chunk_count: int) -> None:
 
 
 def remove_repo(repo_path: str) -> None:
+    """Remove repo from config.json. Caller must delete the Qdrant collection separately."""
     config = load_config()
     config.pop(repo_path, None)
     save_config(config)
@@ -68,10 +72,8 @@ def get_all_repos() -> dict:
 
 
 def ensure_collection(client: QdrantClient, repo_id: str) -> None:
-    try:
+    if client.collection_exists(collection_name=repo_id):
         client.delete_collection(collection_name=repo_id)
-    except Exception:
-        pass
     client.create_collection(
         collection_name=repo_id,
         vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
