@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.table import Table
 
 from . import indexer
-from .store import get_all_repos, get_client, get_repo_id, is_indexed, load_config, remove_repo
+from .store import get_all_repos, get_client, is_indexed, load_config, remove_repo
 
 console = Console()
 
@@ -65,10 +65,9 @@ def remove(path: str) -> None:
         console.print(f"[red]Not indexed: {abs_path}[/red]")
         raise SystemExit(1)
     repo_id = config[abs_path]["repo_id"]
-    try:
-        get_client().delete_collection(repo_id)
-    except Exception:
-        pass
+    client = get_client()
+    if client.collection_exists(repo_id):
+        client.delete_collection(repo_id)
     remove_repo(abs_path)
     console.print(f"[green]Removed {abs_path}[/green]")
 
