@@ -76,4 +76,5 @@ def remove(path: str) -> None:
 def serve() -> None:
     """Start the MCP server (used by Claude Code)."""
     from .server import mcp
+
     mcp.run(transport="stdio")

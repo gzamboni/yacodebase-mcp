@@ -5,22 +5,45 @@ from pathlib import Path
 from openai import OpenAI
 from qdrant_client.models import PointStruct
 
+from .ast_chunker import chunk_file_ast
 from .store import (
     add_repo,
     ensure_collection,
     get_client,
     get_repo_id,
 )
-from .ast_chunker import chunk_file_ast
 
 INDEXED_EXTENSIONS = {
-    ".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".rb",
-    ".java", ".cpp", ".c", ".h", ".md", ".yaml", ".yml", ".toml", ".json",
+    ".py",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".go",
+    ".rs",
+    ".rb",
+    ".java",
+    ".cpp",
+    ".c",
+    ".h",
+    ".md",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".json",
     ".tf",
 }
 SKIP_DIRS = {
-    ".git", "node_modules", "__pycache__", "dist", "build",
-    ".venv", "venv", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    ".git",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
 }
 CHUNK_LINES = 100
 OVERLAP_LINES = 20
@@ -41,28 +64,32 @@ def iter_files(repo_path: Path):
 def _chunk_file_lines(content: str, filepath: str, repo_path: str) -> list[dict]:
     lines = content.splitlines()
     if len(lines) < MIN_LINES_FOR_SPLIT:
-        return [{
-            "text": content[:MAX_CHUNK_CHARS],
-            "file": filepath,
-            "start_line": 1,
-            "end_line": len(lines),
-            "repo_path": repo_path,
-        }]
+        return [
+            {
+                "text": content[:MAX_CHUNK_CHARS],
+                "file": filepath,
+                "start_line": 1,
+                "end_line": len(lines),
+                "repo_path": repo_path,
+            }
+        ]
 
     chunks = []
     step = CHUNK_LINES - OVERLAP_LINES
     for i in range(0, len(lines), step):
-        chunk_lines = lines[i:i + CHUNK_LINES]
+        chunk_lines = lines[i : i + CHUNK_LINES]
         if not any(line.strip() for line in chunk_lines):
             continue
         text = "\n".join(chunk_lines)[:MAX_CHUNK_CHARS]
-        chunks.append({
-            "text": text,
-            "file": filepath,
-            "start_line": i + 1,
-            "end_line": i + len(chunk_lines),
-            "repo_path": repo_path,
-        })
+        chunks.append(
+            {
+                "text": text,
+                "file": filepath,
+                "start_line": i + 1,
+                "end_line": i + len(chunk_lines),
+                "repo_path": repo_path,
+            }
+        )
     return chunks
 
 
@@ -85,7 +112,7 @@ def _embed_batch(texts: list[str], client: OpenAI) -> list[list[float]]:
         except Exception:
             if attempt == 2:
                 raise
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
     raise RuntimeError("Embedding failed after 3 attempts")
 
 
@@ -109,7 +136,7 @@ def index_repo(repo_path: str) -> int:
 
     point_id = 0
     for i in range(0, len(all_chunks), BATCH_SIZE):
-        batch = all_chunks[i:i + BATCH_SIZE]
+        batch = all_chunks[i : i + BATCH_SIZE]
         embeddings = _embed_batch([c["text"] for c in batch], openai_client)
         points = [
             PointStruct(id=point_id + j, vector=emb, payload=chunk)

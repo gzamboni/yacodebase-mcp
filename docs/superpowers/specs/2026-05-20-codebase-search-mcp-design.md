@@ -169,7 +169,10 @@ codebase-mcp index ~/Code/ai/langfuse-mcp-server
   "mcpServers": {
     "codebase": {
       "command": "codebase-mcp",
-      "args": ["serve"]
+      "args": ["serve"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
     }
   }
 }

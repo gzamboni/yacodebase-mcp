@@ -1,7 +1,7 @@
+from unittest.mock import patch
+
 import pytest
 from click.testing import CliRunner
-from unittest.mock import patch
-from pathlib import Path
 
 
 @pytest.fixture(autouse=True)
@@ -62,6 +62,7 @@ def test_reindex_command(runner, sample_repo):
 
 def test_list_command_empty(runner):
     from codebase_mcp.cli import main
+
     result = runner.invoke(main, ["list"])
     assert result.exit_code == 0
     assert "No repos" in result.output
@@ -95,5 +96,6 @@ def test_remove_command(runner, sample_repo):
 
 def test_remove_nonexistent_fails(runner, tmp_path):
     from codebase_mcp.cli import main
+
     result = runner.invoke(main, ["remove", str(tmp_path / "ghost")])
     assert result.exit_code != 0

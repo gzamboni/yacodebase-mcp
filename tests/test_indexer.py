@@ -1,7 +1,6 @@
-import pytest
-from pathlib import Path
-import os
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 @pytest.fixture
@@ -20,6 +19,7 @@ def fixture_repo(tmp_path):
 
 def test_iter_files_skips_hidden_dirs(fixture_repo):
     from codebase_mcp.indexer import iter_files
+
     files = list(iter_files(fixture_repo))
     paths = [str(f) for f in files]
     assert not any("node_modules" in p for p in paths)
@@ -29,6 +29,7 @@ def test_iter_files_skips_hidden_dirs(fixture_repo):
 
 def test_iter_files_finds_source_files(fixture_repo):
     from codebase_mcp.indexer import iter_files
+
     names = {f.name for f in iter_files(fixture_repo)}
     assert "main.py" in names
     assert "utils.py" in names
@@ -37,6 +38,7 @@ def test_iter_files_finds_source_files(fixture_repo):
 
 def test_chunk_file_short_file_single_chunk():
     from codebase_mcp.indexer import _chunk_file_lines
+
     content = "\n".join(f"line {i}" for i in range(10))
     chunks = _chunk_file_lines(content, "short.py", "/repo")
     assert len(chunks) == 1
@@ -47,6 +49,7 @@ def test_chunk_file_short_file_single_chunk():
 
 def test_chunk_file_long_file_multiple_chunks():
     from codebase_mcp.indexer import _chunk_file_lines
+
     content = "\n".join(f"line {i}" for i in range(200))
     chunks = _chunk_file_lines(content, "long.py", "/repo")
     assert len(chunks) > 1
@@ -55,7 +58,8 @@ def test_chunk_file_long_file_multiple_chunks():
 
 
 def test_chunk_file_overlap():
-    from codebase_mcp.indexer import _chunk_file_lines, CHUNK_LINES, OVERLAP_LINES
+    from codebase_mcp.indexer import CHUNK_LINES, OVERLAP_LINES, _chunk_file_lines
+
     content = "\n".join(f"line {i}" for i in range(CHUNK_LINES * 2))
     chunks = _chunk_file_lines(content, "f.py", "/r")
     step = CHUNK_LINES - OVERLAP_LINES
@@ -80,16 +84,14 @@ def _mock_openai():
     def create_embeddings(model, input):
         # Return one embedding per input text
         num_texts = len(input) if isinstance(input, list) else 1
-        return MagicMock(data=[
-            MagicMock(embedding=_fake_embedding()) for _ in range(num_texts)
-        ])
+        return MagicMock(data=[MagicMock(embedding=_fake_embedding()) for _ in range(num_texts)])
 
     mock.embeddings.create.side_effect = create_embeddings
     return mock
 
 
 def test_index_repo_returns_chunk_count(fixture_repo):
-    from codebase_mcp.indexer import index_repo, iter_files, chunk_file
+    from codebase_mcp.indexer import chunk_file, index_repo, iter_files
 
     # Count expected chunks
     chunks = []
@@ -140,6 +142,7 @@ def test_index_repo_replaces_existing(fixture_repo):
 
 def test_chunk_file_uses_ast_for_python():
     from codebase_mcp.indexer import chunk_file
+
     content = "def hello():\n    return 'hi'\n"
     chunks = chunk_file(content, "hello.py", "/repo")
     assert len(chunks) == 1

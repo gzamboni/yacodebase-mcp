@@ -29,7 +29,14 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.0",
     "pytest-mock>=3.0",
+    "ruff>=0.9",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

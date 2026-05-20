@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -13,8 +14,7 @@ def fixture_repo(tmp_path) -> Path:
         "    return token.startswith('Bearer ')\n"
     )
     (repo / "utils.py").write_text(
-        "def format_date(dt) -> str:\n"
-        "    return dt.strftime('%Y-%m-%d')\n"
+        "def format_date(dt) -> str:\n    return dt.strftime('%Y-%m-%d')\n"
     )
     (repo / "README.md").write_text("# Fixture Repo\n\nUsed for testing.\n")
     return repo

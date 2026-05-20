@@ -39,27 +39,35 @@ def _get_parser(lang_name: str):
 
         if lang_name == "python":
             import tree_sitter_python as m
+
             lang = Language(m.language())
         elif lang_name == "typescript":
             import tree_sitter_typescript as m
+
             lang = Language(m.language_typescript())
         elif lang_name == "typescript_tsx":
             import tree_sitter_typescript as m
+
             lang = Language(m.language_tsx())
         elif lang_name == "javascript":
             import tree_sitter_javascript as m
+
             lang = Language(m.language())
         elif lang_name == "go":
             import tree_sitter_go as m
+
             lang = Language(m.language())
         elif lang_name == "rust":
             import tree_sitter_rust as m
+
             lang = Language(m.language())
         elif lang_name == "java":
             import tree_sitter_java as m
+
             lang = Language(m.language())
         elif lang_name == "hcl":
             import tree_sitter_hcl as m
+
             lang = Language(m.language())
         else:
             _parsers[lang_name] = None
@@ -92,15 +100,17 @@ def chunk_file_ast(content: str, filepath: str, repo_path: str) -> list[dict] | 
         if node.type == "ERROR":
             return
         if node.type in node_types:
-            text = content[node.start_byte:node.end_byte][:MAX_CHUNK_CHARS]
-            chunks.append({
-                "text": text,
-                "file": filepath,
-                "start_line": node.start_point[0] + 1,
-                "end_line": node.end_point[0] + 1,
-                "repo_path": repo_path,
-                "node_type": node.type,
-            })
+            text = content[node.start_byte : node.end_byte][:MAX_CHUNK_CHARS]
+            chunks.append(
+                {
+                    "text": text,
+                    "file": filepath,
+                    "start_line": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                    "repo_path": repo_path,
+                    "node_type": node.type,
+                }
+            )
             return  # don't descend — avoids nested method-inside-class duplication
         for child in node.children:
             walk(child)

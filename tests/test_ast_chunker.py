@@ -1,12 +1,14 @@
 import pytest
-from pathlib import Path
+
 from codebase_mcp import ast_chunker
+
 
 @pytest.fixture(autouse=True)
 def clear_parser_cache():
     ast_chunker._parsers.clear()
     yield
     ast_chunker._parsers.clear()
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -96,8 +98,10 @@ resource "aws_instance" "web" {
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
+
 def test_python_extracts_functions():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(PYTHON_FUNCTIONS, "foo.py", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -108,6 +112,7 @@ def test_python_extracts_functions():
 
 def test_python_extracts_decorated():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(PYTHON_DECORATED, "foo.py", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -120,6 +125,7 @@ def test_python_extracts_decorated():
 
 def test_typescript_extracts_methods():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(TYPESCRIPT_CLASS, "svc.ts", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -132,6 +138,7 @@ def test_typescript_extracts_methods():
 
 def test_go_extracts_functions():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(GO_FUNCTIONS, "math.go", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -142,6 +149,7 @@ def test_go_extracts_functions():
 
 def test_rust_extracts_functions():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(RUST_FUNCTIONS, "lib.rs", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -152,16 +160,18 @@ def test_rust_extracts_functions():
 
 def test_java_extracts_methods():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(JAVA_CLASS, "MathUtils.java", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
     texts = " ".join(c["text"] for c in chunks)
-    assert "MathUtils()" in texts   # constructor
+    assert "MathUtils()" in texts  # constructor
     assert "add" in texts
 
 
 def test_terraform_extracts_blocks():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(TERRAFORM_RESOURCES, "main.tf", "/repo")
     assert chunks is not None
     assert len(chunks) == 2
@@ -172,18 +182,21 @@ def test_terraform_extracts_blocks():
 
 def test_unsupported_ext_returns_none():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     result = chunk_file_ast("key: value\n", "config.yaml", "/repo")
     assert result is None
 
 
 def test_no_semantic_nodes_returns_none():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     result = chunk_file_ast(PYTHON_ONLY_IMPORTS, "imports.py", "/repo")
     assert result is None
 
 
 def test_chunk_metadata():
     from codebase_mcp.ast_chunker import chunk_file_ast
+
     chunks = chunk_file_ast(PYTHON_FUNCTIONS, "src/foo.py", "/myrepo")
     assert chunks is not None
     c = chunks[0]
@@ -198,6 +211,7 @@ def test_chunk_metadata():
 
 def test_chunk_file_falls_back_to_lines():
     from codebase_mcp.indexer import chunk_file
+
     content = "key: value\nanother: line\n"
     chunks = chunk_file(content, "config.yaml", "/repo")
     assert len(chunks) >= 1
