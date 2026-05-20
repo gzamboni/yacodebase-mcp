@@ -110,6 +110,7 @@ def test_python_extracts_decorated():
     from codebase_mcp.ast_chunker import chunk_file_ast
     chunks = chunk_file_ast(PYTHON_DECORATED, "foo.py", "/repo")
     assert chunks is not None
+    assert len(chunks) == 2
     # decorator def + decorated_definition = 2 nodes
     # only the decorated_definition wraps @decorator+def annotated
     func_chunks = [c for c in chunks if "annotated" in c["text"]]
