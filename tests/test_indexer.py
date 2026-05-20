@@ -1,5 +1,7 @@
 import pytest
 from pathlib import Path
+import os
+from unittest.mock import MagicMock, patch
 
 
 @pytest.fixture
@@ -58,3 +60,76 @@ def test_chunk_file_overlap():
     chunks = chunk_file(content, "f.py", "/r")
     step = CHUNK_LINES - OVERLAP_LINES
     assert chunks[1]["start_line"] == step + 1
+
+
+@pytest.fixture(autouse=True)
+def isolated_store(tmp_path_factory, monkeypatch):
+    # Use a separate tmp_path for the store to avoid conflicts with fixture_repo
+    store_dir = tmp_path_factory.mktemp("codebase_mcp_store")
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(store_dir))
+    import importlib
+    import codebase_mcp.store as store_mod
+    import codebase_mcp.indexer as indexer_mod
+    importlib.reload(store_mod)
+    importlib.reload(indexer_mod)
+
+
+def _fake_embedding(size: int = 1536) -> list[float]:
+    return [0.1] * size
+
+
+def _mock_openai():
+    """Create a mock OpenAI client that returns embeddings based on input size."""
+    mock = MagicMock()
+
+    def create_embeddings(model, input):
+        # Return one embedding per input text
+        num_texts = len(input) if isinstance(input, list) else 1
+        return MagicMock(data=[
+            MagicMock(embedding=_fake_embedding()) for _ in range(num_texts)
+        ])
+
+    mock.embeddings.create.side_effect = create_embeddings
+    return mock
+
+
+def test_index_repo_returns_chunk_count(fixture_repo, tmp_path):
+    from codebase_mcp.indexer import index_repo, iter_files, chunk_file
+
+    # Count expected chunks
+    chunks = []
+    for f in iter_files(fixture_repo):
+        content = f.read_text(encoding="utf-8", errors="ignore")
+        chunks.extend(chunk_file(content, str(f), str(fixture_repo)))
+    expected = len(chunks)
+
+    with patch("codebase_mcp.indexer.OpenAI") as MockOpenAI:
+        MockOpenAI.return_value = _mock_openai()
+        count = index_repo(str(fixture_repo))
+
+    assert count == expected
+
+
+def test_index_repo_saves_to_config(fixture_repo, tmp_path):
+    from codebase_mcp.indexer import index_repo
+    from codebase_mcp.store import is_indexed
+
+    with patch("codebase_mcp.indexer.OpenAI") as MockOpenAI:
+        MockOpenAI.return_value = _mock_openai()
+        index_repo(str(fixture_repo))
+
+    assert is_indexed(str(fixture_repo.resolve()))
+
+
+def test_index_repo_replaces_existing(fixture_repo, tmp_path):
+    from codebase_mcp.indexer import index_repo
+    from codebase_mcp.store import load_config
+
+    with patch("codebase_mcp.indexer.OpenAI") as MockOpenAI:
+        MockOpenAI.return_value = _mock_openai()
+        first_count = index_repo(str(fixture_repo))
+        second_count = index_repo(str(fixture_repo))
+
+    assert first_count == second_count
+    config = load_config()
+    assert str(fixture_repo.resolve()) in config
