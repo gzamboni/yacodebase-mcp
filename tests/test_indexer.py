@@ -36,9 +36,9 @@ def test_iter_files_finds_source_files(fixture_repo):
 
 
 def test_chunk_file_short_file_single_chunk():
-    from codebase_mcp.indexer import chunk_file
+    from codebase_mcp.indexer import _chunk_file_lines
     content = "\n".join(f"line {i}" for i in range(10))
-    chunks = chunk_file(content, "short.py", "/repo")
+    chunks = _chunk_file_lines(content, "short.py", "/repo")
     assert len(chunks) == 1
     assert chunks[0]["start_line"] == 1
     assert chunks[0]["file"] == "short.py"
@@ -46,18 +46,18 @@ def test_chunk_file_short_file_single_chunk():
 
 
 def test_chunk_file_long_file_multiple_chunks():
-    from codebase_mcp.indexer import chunk_file
+    from codebase_mcp.indexer import _chunk_file_lines
     content = "\n".join(f"line {i}" for i in range(200))
-    chunks = chunk_file(content, "long.py", "/repo")
+    chunks = _chunk_file_lines(content, "long.py", "/repo")
     assert len(chunks) > 1
     # chunks overlap: second chunk starts before first ends
     assert chunks[1]["start_line"] < chunks[0]["end_line"]
 
 
 def test_chunk_file_overlap():
-    from codebase_mcp.indexer import chunk_file, CHUNK_LINES, OVERLAP_LINES
+    from codebase_mcp.indexer import _chunk_file_lines, CHUNK_LINES, OVERLAP_LINES
     content = "\n".join(f"line {i}" for i in range(CHUNK_LINES * 2))
-    chunks = chunk_file(content, "f.py", "/r")
+    chunks = _chunk_file_lines(content, "f.py", "/r")
     step = CHUNK_LINES - OVERLAP_LINES
     assert chunks[1]["start_line"] == step + 1
 
@@ -136,3 +136,12 @@ def test_index_repo_replaces_existing(fixture_repo):
 
     config = load_config()
     assert abs_path in config
+
+
+def test_chunk_file_uses_ast_for_python():
+    from codebase_mcp.indexer import chunk_file
+    content = "def hello():\n    return 'hi'\n"
+    chunks = chunk_file(content, "hello.py", "/repo")
+    assert len(chunks) == 1
+    assert "node_type" in chunks[0]
+    assert chunks[0]["node_type"] == "function_definition"
