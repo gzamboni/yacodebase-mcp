@@ -98,3 +98,39 @@ def test_what_changed_detects_modified(tmp_path):
     ):
         result = fn(repo_path=str(tmp_path))
     assert "app.py" in result
+
+
+def test_add_decision_tool(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(tmp_path))
+    fn = _get_tool("add_decision")
+    result = fn(
+        title="Use SQLite", body="SQLite for knowledge persistence", category="architecture"
+    )
+    assert "saved" in result.lower() or "decision" in result.lower()
+
+
+def test_search_decisions_tool(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(tmp_path))
+    from codebase_mcp.knowledge import add_decision as _add
+
+    _add("Use Qdrant", "Vector storage", "architecture")
+    fn = _get_tool("search_decisions")
+    result = fn(query="Qdrant")
+    assert "Qdrant" in result
+
+
+def test_add_note_tool(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(tmp_path))
+    fn = _get_tool("add_note")
+    result = fn(content="Remember to add pagination", scope="project")
+    assert "saved" in result.lower() or "note" in result.lower()
+
+
+def test_get_notes_tool(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(tmp_path))
+    from codebase_mcp.knowledge import add_note as _add
+
+    _add("pagination needed", scope="project")
+    fn = _get_tool("get_notes")
+    result = fn()
+    assert "pagination" in result

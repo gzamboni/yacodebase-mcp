@@ -7,6 +7,11 @@ from qdrant_client.models import FieldCondition, Filter, MatchText
 
 from . import searcher
 from .ast_chunker import chunk_file_ast
+from .knowledge import add_decision as _add_decision
+from .knowledge import add_note as _add_note
+from .knowledge import get_notes as _get_notes
+from .knowledge import search_decisions as _search_decisions
+from .knowledge import update_decision as _update_decision
 from .store import get_all_repos
 
 mcp = FastMCP("codebase-search")
@@ -206,3 +211,80 @@ def what_changed(repo_path: str | None = None) -> str:
             parts.append(f"{path}: no changes since {meta['last_indexed'][:19]}")
 
     return "\n\n".join(parts)
+
+
+@mcp.tool()
+def add_decision(title: str, body: str, category: str = "general") -> str:
+    """Record an architectural decision for future sessions.
+
+    Args:
+        title: Short title for the decision.
+        body: Detailed explanation and rationale.
+        category: Category label (e.g. 'architecture', 'security', 'performance').
+    """
+    decision_id = _add_decision(title, body, category)
+    return f"Decision #{decision_id} saved: {title}"
+
+
+@mcp.tool()
+def search_decisions(query: str = "", category: str = "") -> str:
+    """Search recorded architectural decisions.
+
+    Args:
+        query: Keyword to search in title and body. Omit to list all.
+        category: Filter by category. Omit to search all categories.
+    """
+    results = _search_decisions(query=query, category=category)
+    if not results:
+        return "No decisions found."
+    lines = []
+    for d in results:
+        lines.append(
+            f"[#{d['id']}] [{d['status']}] {d['title']} ({d['category']})\n  {d['body'][:120]}"
+        )
+    return "\n\n".join(lines)
+
+
+@mcp.tool()
+def update_decision(decision_id: int, status: str) -> str:
+    """Update the status of an architectural decision.
+
+    Args:
+        decision_id: The ID from search_decisions output.
+        status: New status: 'active', 'superseded', 'implemented', or 'rejected'.
+    """
+    valid = {"active", "superseded", "implemented", "rejected"}
+    if status not in valid:
+        return f"Invalid status '{status}'. Use: {', '.join(sorted(valid))}"
+    _update_decision(decision_id, status)
+    return f"Decision #{decision_id} status updated to '{status}'"
+
+
+@mcp.tool()
+def add_note(content: str, scope: str = "project", reference: str | None = None) -> str:
+    """Save a note that persists across sessions.
+
+    Args:
+        content: The note text.
+        scope: 'project', 'file', or 'symbol'.
+        reference: File path or symbol name the note refers to (optional).
+    """
+    note_id = _add_note(content, scope, reference)
+    return f"Note #{note_id} saved."
+
+
+@mcp.tool()
+def get_notes(scope: str = "") -> str:
+    """Retrieve saved notes.
+
+    Args:
+        scope: Filter by scope ('project', 'file', 'symbol'). Omit for all.
+    """
+    notes = _get_notes(scope=scope)
+    if not notes:
+        return "No notes found."
+    lines = []
+    for n in notes:
+        ref = f" [{n['reference']}]" if n.get("reference") else ""
+        lines.append(f"[#{n['id']}] [{n['scope']}]{ref} {n['content']}")
+    return "\n".join(lines)
