@@ -134,3 +134,34 @@ def test_get_notes_tool(tmp_path, monkeypatch):
     fn = _get_tool("get_notes")
     result = fn()
     assert "pagination" in result
+
+
+def test_session_bootstrap_no_repos():
+    fn = _get_tool("session_bootstrap")
+    with patch("codebase_mcp.server.get_all_repos", return_value={}):
+        result = fn()
+    assert "No repos" in result or "indexed" in result.lower()
+
+
+def test_session_bootstrap_returns_summary(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEBASE_MCP_DATA_DIR", str(tmp_path))
+    from codebase_mcp.knowledge import add_decision as _add
+
+    _add("Use SQLite", "For knowledge", "architecture")
+    fn = _get_tool("session_bootstrap")
+    with (
+        patch(
+            "codebase_mcp.server.get_all_repos",
+            return_value={
+                "/some/repo": {
+                    "repo_id": "abc",
+                    "last_indexed": "2000-01-01T00:00:00+00:00",
+                    "chunk_count": 42,
+                }
+            },
+        ),
+        patch("codebase_mcp.indexer.iter_files", return_value=[]),
+    ):
+        result = fn()
+    assert "SQLite" in result
+    assert "42" in result

@@ -288,3 +288,72 @@ def get_notes(scope: str = "") -> str:
         ref = f" [{n['reference']}]" if n.get("reference") else ""
         lines.append(f"[#{n['id']}] [{n['scope']}]{ref} {n['content']}")
     return "\n".join(lines)
+
+
+@mcp.tool()
+def session_bootstrap(repo_path: str | None = None) -> str:
+    """Orient the agent for a new session: repo status, recent changes, active decisions, notes.
+
+    Call this at the start of every session instead of reading files for orientation.
+
+    Args:
+        repo_path: Absolute path to a specific repo. Omit to summarize all indexed repos.
+    """
+    from .indexer import iter_files
+
+    sections: list[str] = ["# Session Bootstrap\n"]
+
+    config = get_all_repos()
+    if not config:
+        return "No repos indexed. Run: codebase-mcp index /path/to/repo"
+
+    if repo_path:
+        abs_path = str(Path(repo_path).resolve())
+        candidates = {abs_path: config[abs_path]} if abs_path in config else {}
+    else:
+        candidates = config
+
+    if not candidates:
+        return f"Repo not indexed: {repo_path}"
+
+    repo_lines = ["## Indexed Repos"]
+    for path, meta in candidates.items():
+        repo_lines.append(
+            f"  {path}  —  {meta['chunk_count']} chunks, last indexed {meta['last_indexed'][:19]}"
+        )
+    sections.append("\n".join(repo_lines))
+
+    changed_parts: list[str] = []
+    for path, meta in candidates.items():
+        last_indexed = datetime.fromisoformat(meta["last_indexed"])
+        if last_indexed.tzinfo is None:
+            last_indexed = last_indexed.replace(tzinfo=timezone.utc)
+        changed = []
+        for filepath in iter_files(Path(path)):
+            mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=timezone.utc)
+            if mtime > last_indexed:
+                changed.append(str(filepath.relative_to(path)))
+        if changed:
+            changed_parts.append(f"{path}: {len(changed)} file(s) changed since last index")
+    sections.append(
+        "## Changes Since Last Index\n"
+        + ("\n".join(f"  {c}" for c in changed_parts) if changed_parts else "  None detected")
+    )
+
+    decisions = _search_decisions()
+    active = [d for d in decisions if d["status"] == "active"]
+    if active:
+        dec_lines = ["## Active Decisions"]
+        for d in active[:10]:
+            dec_lines.append(f"  [#{d['id']}] {d['title']} ({d['category']})")
+        sections.append("\n".join(dec_lines))
+
+    notes = _get_notes()
+    if notes:
+        note_lines = ["## Notes"]
+        for n in notes[:5]:
+            ref = f" [{n['reference']}]" if n.get("reference") else ""
+            note_lines.append(f"  [#{n['id']}]{ref} {n['content'][:80]}")
+        sections.append("\n".join(note_lines))
+
+    return "\n\n".join(sections)
