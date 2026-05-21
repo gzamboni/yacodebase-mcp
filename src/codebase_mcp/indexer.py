@@ -1,6 +1,8 @@
 import hashlib
 import os
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from openai import OpenAI
@@ -13,7 +15,9 @@ from .store import (
     ensure_collection,
     get_client,
     get_repo_id,
+    load_config,
     load_file_hashes,
+    save_config,
     save_file_hashes,
 )
 
@@ -206,12 +210,6 @@ def index_repo_incremental(repo_path: str) -> int:
         except Exception:
             pass
 
-    try:
-        info = qdrant.get_collection(repo_id)
-        point_id = int(info.points_count or 0)
-    except Exception:
-        point_id = 0
-
     all_new_chunks: list[dict] = []
     for filepath in changed_files:
         try:
@@ -231,24 +229,16 @@ def index_repo_incremental(repo_path: str) -> int:
             [c["text"] for c in batch], openai_client, settings.embedding_model
         )
         points = [
-            PointStruct(id=point_id + j, vector=emb, payload=chunk)
-            for j, (chunk, emb) in enumerate(zip(batch, embeddings))
+            PointStruct(id=str(uuid.uuid4()), vector=emb, payload=chunk)
+            for chunk, emb in zip(batch, embeddings)
         ]
         qdrant.upsert(collection_name=repo_id, points=points)
-        point_id += len(batch)
 
     save_file_hashes(abs_path, current_hashes)
-
-    from datetime import datetime, timezone
-
-    from .store import load_config, save_config
 
     config = load_config()
     if abs_path in config:
         config[abs_path]["last_indexed"] = datetime.now(timezone.utc).isoformat()
-        config[abs_path]["chunk_count"] = config[abs_path].get("chunk_count", 0) + len(
-            all_new_chunks
-        )
         save_config(config)
     else:
         add_repo(abs_path, len(all_new_chunks))
