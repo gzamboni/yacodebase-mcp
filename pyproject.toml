@@ -1,6 +1,6 @@
 [project]
 name = "yacodebase-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI + MCP server that indexes local codebases into Qdrant using OpenAI-compatible embeddings, then exposes semantic search to Claude Code and other MCP clients"
 readme = "README.md"
 license = { text = "MIT" }
