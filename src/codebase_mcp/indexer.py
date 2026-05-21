@@ -234,13 +234,13 @@ def index_repo_incremental(repo_path: str) -> int:
         ]
         qdrant.upsert(collection_name=repo_id, points=points)
 
-    save_file_hashes(abs_path, current_hashes)
-
     config = load_config()
     if abs_path in config:
         config[abs_path]["last_indexed"] = datetime.now(timezone.utc).isoformat()
         save_config(config)
     else:
         add_repo(abs_path, len(all_new_chunks))
+
+    save_file_hashes(abs_path, current_hashes)
 
     return len(all_new_chunks)

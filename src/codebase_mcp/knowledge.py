@@ -51,7 +51,6 @@ def add_decision(title: str, body: str, category: str = "general") -> int:
 
 
 def search_decisions(query: str = "", category: str = "") -> list[dict]:
-    con = _conn()
     sql = "SELECT * FROM decisions WHERE 1=1"
     params: list = []
     if query:
@@ -61,13 +60,15 @@ def search_decisions(query: str = "", category: str = "") -> list[dict]:
         sql += " AND category = ?"
         params.append(category)
     sql += " ORDER BY created_at DESC"
-    rows = con.execute(sql, params).fetchall()
+    with _conn() as con:
+        rows = con.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def update_decision(decision_id: int, status: str) -> None:
+def update_decision(decision_id: int, status: str) -> bool:
     with _conn() as con:
-        con.execute("UPDATE decisions SET status=? WHERE id=?", (status, decision_id))
+        cur = con.execute("UPDATE decisions SET status=? WHERE id=?", (status, decision_id))
+        return cur.rowcount > 0
 
 
 def add_note(content: str, scope: str = "project", reference: str | None = None) -> int:
@@ -80,12 +81,12 @@ def add_note(content: str, scope: str = "project", reference: str | None = None)
 
 
 def get_notes(scope: str = "") -> list[dict]:
-    con = _conn()
     sql = "SELECT * FROM notes"
     params: list = []
     if scope:
         sql += " WHERE scope = ?"
         params.append(scope)
     sql += " ORDER BY created_at DESC"
-    rows = con.execute(sql, params).fetchall()
+    with _conn() as con:
+        rows = con.execute(sql, params).fetchall()
     return [dict(r) for r in rows]

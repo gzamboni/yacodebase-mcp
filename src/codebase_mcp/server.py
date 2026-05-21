@@ -86,7 +86,7 @@ def search_symbols(name: str, repo_path: str | None = None) -> str:
             sym = pay.get("symbol_name") or ""
             if sym and name.lower() in sym.lower():
                 results.append(
-                    f"  {pay['node_type']}  {sym}"
+                    f"  {pay.get('node_type', '?')}  {sym}"
                     f"  {pay['file']}:{pay['start_line']}-{pay['end_line']}"
                 )
 
@@ -256,7 +256,9 @@ def update_decision(decision_id: int, status: str) -> str:
     valid = {"active", "superseded", "implemented", "rejected"}
     if status not in valid:
         return f"Invalid status '{status}'. Use: {', '.join(sorted(valid))}"
-    _update_decision(decision_id, status)
+    updated = _update_decision(decision_id, status)
+    if not updated:
+        return f"Decision #{decision_id} not found."
     return f"Decision #{decision_id} status updated to '{status}'"
 
 
