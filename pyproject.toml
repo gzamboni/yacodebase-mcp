@@ -1,5 +1,5 @@
 [project]
-name = "codebase-mcp"
+name = "yacodebase-mcp"
 version = "0.1.0"
 description = "CLI + MCP server that indexes local codebases into Qdrant using OpenAI-compatible embeddings, then exposes semantic search to Claude Code and other MCP clients"
 readme = "README.md"
@@ -39,6 +39,9 @@ Issues = "https://github.com/gzamboni/codebase-mcp/issues"
 
 [project.scripts]
 codebase-mcp = "codebase_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codebase_mcp"]
 
 [build-system]
 requires = ["hatchling"]
