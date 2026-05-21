@@ -69,7 +69,7 @@ def get_all_repos() -> dict:
     return load_config()
 
 
-def ensure_collection(client: QdrantClient, repo_id: str, vector_size: int = 1536) -> None:
+def ensure_collection(client: QdrantClient, repo_id: str, vector_size: int) -> None:
     if client.collection_exists(collection_name=repo_id):
         client.delete_collection(collection_name=repo_id)
     client.create_collection(

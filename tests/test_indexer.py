@@ -148,3 +148,32 @@ def test_chunk_file_uses_ast_for_python():
     assert len(chunks) == 1
     assert "node_type" in chunks[0]
     assert chunks[0]["node_type"] == "function_definition"
+
+
+def test_index_repo_uses_settings_model_and_credentials(fixture_repo):
+    from codebase_mcp.indexer import index_repo
+    from codebase_mcp.settings import Settings
+
+    custom_settings = Settings(
+        embedding_model="text-embedding-3-large",
+        vector_size=3072,
+        api_key="sk-custom",
+        api_base="http://localhost:11434/v1",
+    )
+
+    def fake_create(model, input):
+        assert model == "text-embedding-3-large"
+        num = len(input) if isinstance(input, list) else 1
+        return MagicMock(data=[MagicMock(embedding=[0.1] * 3072) for _ in range(num)])
+
+    mock_client = MagicMock()
+    mock_client.embeddings.create.side_effect = fake_create
+
+    with (
+        patch("codebase_mcp.indexer.get_settings", return_value=custom_settings),
+        patch("codebase_mcp.indexer.OpenAI") as MockOpenAI,
+    ):
+        MockOpenAI.return_value = mock_client
+        index_repo(str(fixture_repo))
+
+    MockOpenAI.assert_called_once_with(api_key="sk-custom", base_url="http://localhost:11434/v1")

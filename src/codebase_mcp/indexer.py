@@ -6,6 +6,7 @@ from openai import OpenAI
 from qdrant_client.models import PointStruct
 
 from .ast_chunker import chunk_file_ast
+from .settings import get_settings
 from .store import (
     add_repo,
     ensure_collection,
@@ -101,11 +102,11 @@ def chunk_file(content: str, filepath: str, repo_path: str) -> list[dict]:
     return chunks if chunks else _chunk_file_lines(content, filepath, repo_path)
 
 
-def _embed_batch(texts: list[str], client: OpenAI) -> list[list[float]]:
+def _embed_batch(texts: list[str], client: OpenAI, model: str) -> list[list[float]]:
     for attempt in range(3):
         try:
             response = client.embeddings.create(
-                model="text-embedding-3-small",
+                model=model,
                 input=texts,
             )
             return [r.embedding for r in response.data]
@@ -120,7 +121,8 @@ def index_repo(repo_path: str) -> int:
     """Index a repo. Always replaces any existing index for this path."""
     abs_path = str(Path(repo_path).resolve())
     repo_id = get_repo_id(abs_path)
-    openai_client = OpenAI()
+    settings = get_settings()
+    openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
     qdrant = get_client()
 
     all_chunks: list[dict] = []
@@ -132,12 +134,14 @@ def index_repo(repo_path: str) -> int:
         rel_path = str(filepath.relative_to(abs_path))
         all_chunks.extend(chunk_file(content, rel_path, abs_path))
 
-    ensure_collection(qdrant, repo_id)
+    ensure_collection(qdrant, repo_id, vector_size=settings.vector_size)
 
     point_id = 0
     for i in range(0, len(all_chunks), BATCH_SIZE):
         batch = all_chunks[i : i + BATCH_SIZE]
-        embeddings = _embed_batch([c["text"] for c in batch], openai_client)
+        embeddings = _embed_batch(
+            [c["text"] for c in batch], openai_client, settings.embedding_model
+        )
         points = [
             PointStruct(id=point_id + j, vector=emb, payload=chunk)
             for j, (chunk, emb) in enumerate(zip(batch, embeddings))
