@@ -1,6 +1,20 @@
 [project]
 name = "codebase-mcp"
 version = "0.1.0"
+description = "CLI + MCP server that indexes local codebases into Qdrant using OpenAI-compatible embeddings, then exposes semantic search to Claude Code and other MCP clients"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "gzamboni", email = "gzamboni@gmail.com" }]
+keywords = ["mcp", "semantic-search", "qdrant", "embeddings", "claude", "codebase"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.0",
@@ -17,6 +31,11 @@ dependencies = [
     "tree-sitter-java>=0.23",
     "tree-sitter-hcl>=0.23",
 ]
+
+[project.urls]
+Homepage = "https://github.com/gzamboni/codebase-mcp"
+Repository = "https://github.com/gzamboni/codebase-mcp"
+Issues = "https://github.com/gzamboni/codebase-mcp/issues"
 
 [project.scripts]
 codebase-mcp = "codebase_mcp.cli:main"
