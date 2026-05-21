@@ -7,8 +7,6 @@ from pathlib import Path
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 
-VECTOR_SIZE = 1536  # text-embedding-3-small
-
 
 def _data_dir() -> Path:
     return Path(os.environ.get("CODEBASE_MCP_DATA_DIR", str(Path.home() / ".codebase-mcp")))
@@ -71,10 +69,10 @@ def get_all_repos() -> dict:
     return load_config()
 
 
-def ensure_collection(client: QdrantClient, repo_id: str) -> None:
+def ensure_collection(client: QdrantClient, repo_id: str, vector_size: int = 1536) -> None:
     if client.collection_exists(collection_name=repo_id):
         client.delete_collection(collection_name=repo_id)
     client.create_collection(
         collection_name=repo_id,
-        vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+        vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
     )

@@ -19,7 +19,7 @@ def _mock_openai():
     return mock
 
 
-def _seeded_store(tmp_path, repo_path: str):
+def _seeded_store(tmp_path, repo_path: str, vector_size: int = 1536):
     """Put a fake repo entry in config + a real Qdrant collection with one point."""
     from qdrant_client.models import PointStruct
 
@@ -29,13 +29,13 @@ def _seeded_store(tmp_path, repo_path: str):
     repo_id = get_repo_id(abs_path)
     add_repo(abs_path, chunk_count=1)
     client = get_client()
-    ensure_collection(client, repo_id)
+    ensure_collection(client, repo_id, vector_size=vector_size)
     client.upsert(
         collection_name=repo_id,
         points=[
             PointStruct(
                 id=0,
-                vector=_fake_embedding(),
+                vector=[0.1] * vector_size,
                 payload={
                     "file": "main.py",
                     "start_line": 1,

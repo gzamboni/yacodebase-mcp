@@ -53,7 +53,7 @@ def test_ensure_collection_creates_new(tmp_path):
 
     client = get_client()
     repo_id = get_repo_id(str(tmp_path / "repo"))
-    ensure_collection(client, repo_id)
+    ensure_collection(client, repo_id, vector_size=1536)
     assert client.collection_exists(repo_id)
 
 
@@ -64,13 +64,11 @@ def test_ensure_collection_replaces_existing(tmp_path):
 
     client = get_client()
     repo_id = get_repo_id(str(tmp_path / "repo"))
-    # Create with a point
-    ensure_collection(client, repo_id)
+    ensure_collection(client, repo_id, vector_size=1536)
     client.upsert(
         collection_name=repo_id,
         points=[PointStruct(id=0, vector=[0.1] * 1536, payload={"x": 1})],
     )
-    # Re-create — old point must be gone
-    ensure_collection(client, repo_id)
+    ensure_collection(client, repo_id, vector_size=1536)
     results = client.scroll(collection_name=repo_id, limit=10)[0]
     assert len(results) == 0
