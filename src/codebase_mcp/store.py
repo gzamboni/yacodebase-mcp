@@ -76,3 +76,18 @@ def ensure_collection(client: QdrantClient, repo_id: str, vector_size: int) -> N
         collection_name=repo_id,
         vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
     )
+
+
+def save_file_hashes(repo_path: str, hashes: dict[str, str]) -> None:
+    """Save per-file SHA256 hashes for a repo into config.json."""
+    config = load_config()
+    if repo_path not in config:
+        return
+    config[repo_path]["file_hashes"] = hashes
+    save_config(config)
+
+
+def load_file_hashes(repo_path: str) -> dict[str, str]:
+    """Load per-file SHA256 hashes for a repo from config.json."""
+    config = load_config()
+    return config.get(repo_path, {}).get("file_hashes", {})
