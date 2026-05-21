@@ -92,3 +92,52 @@ def test_search_no_repos_indexed(tmp_path):
         result = search("something")
 
     assert "no repos" in result.lower()
+
+
+def test_search_uses_settings_model(tmp_path):
+    abs_path = _seeded_store(tmp_path, str(tmp_path / "myrepo"))
+
+    from codebase_mcp.settings import Settings
+
+    custom_settings = Settings(
+        embedding_model="custom-model",
+        vector_size=1536,
+        api_key="sk-custom",
+        api_base="http://localhost/v1",
+    )
+    mock = MagicMock()
+    mock.embeddings.create.return_value.data = [MagicMock(embedding=_fake_embedding())]
+
+    with (
+        patch("codebase_mcp.searcher.get_settings", return_value=custom_settings),
+        patch("codebase_mcp.searcher.OpenAI") as MockOpenAI,
+    ):
+        MockOpenAI.return_value = mock
+        from codebase_mcp.searcher import search
+
+        search("hello", repo_path=abs_path)
+
+    MockOpenAI.assert_called_once_with(api_key="sk-custom", base_url="http://localhost/v1")
+    mock.embeddings.create.assert_called_once()
+    call_kwargs = mock.embeddings.create.call_args
+    assert call_kwargs.kwargs["model"] == "custom-model"
+
+
+def test_search_returns_mismatch_warning(tmp_path):
+    # Seed store with vector_size=1536, then search with settings that say 3072.
+    abs_path = _seeded_store(tmp_path, str(tmp_path / "myrepo"), vector_size=1536)
+
+    from codebase_mcp.settings import Settings
+
+    mismatched_settings = Settings(
+        embedding_model="text-embedding-3-large",
+        vector_size=3072,
+    )
+
+    with patch("codebase_mcp.searcher.get_settings", return_value=mismatched_settings):
+        from codebase_mcp.searcher import search
+
+        result = search("hello", repo_path=abs_path)
+
+    assert "mismatch" in result.lower()
+    assert "reindex" in result.lower()
