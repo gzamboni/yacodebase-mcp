@@ -50,7 +50,7 @@ CHUNK_LINES = 100
 OVERLAP_LINES = 20
 MIN_LINES_FOR_SPLIT = 20
 BATCH_SIZE = 100
-MAX_CHUNK_CHARS = 32_000  # text-embedding-3-small limit is 8191 tokens (~4 chars/token)
+MAX_CHUNK_CHARS = 20_000  # 8191 token limit; code tokenizes at ~2.5 chars/token → 20k chars safe
 
 
 def iter_files(repo_path: Path):
