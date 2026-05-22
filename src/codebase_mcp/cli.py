@@ -16,6 +16,7 @@ console = Console()
 def main():
     """Codebase vector search — index repos, search via MCP."""
     import sys
+
     if Path(sys.argv[0]).stem == "codebase-mcp":
         click.echo("Warning: codebase-mcp is deprecated, use yacodebase-mcp", err=True)
 
@@ -295,6 +296,88 @@ def install_status() -> None:
         except (json.JSONDecodeError, OSError):
             installed = "[yellow]parse error[/yellow]"
         table.add_row(agent.label, str(agent.config_path()), installed)
+
+    wide_console = Console(width=10000)
+    wide_console.print(table)
+
+
+@main.group()
+def hook():
+    """Manage post-commit git hooks for automatic reindex."""
+
+
+@hook.command("install")
+@click.argument("repo_path", default=".", type=click.Path(file_okay=False))
+def hook_install(repo_path: str) -> None:
+    """Install post-commit hook in REPO_PATH (default: current dir)."""
+    from .hook import install_hook
+    from .store import is_indexed
+
+    abs_path = str(Path(repo_path).resolve())
+    try:
+        result = install_hook(abs_path)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise SystemExit(1)
+
+    status = result["status"]
+    path = result["path"]
+    if status == "already":
+        console.print(f"[yellow]Hook already installed: {path}[/yellow]")
+    elif status == "appended":
+        console.print(f"[green]Hook appended to existing: {path}[/green]")
+    else:
+        console.print(f"[green]Hook installed: {path}[/green]")
+
+    if not is_indexed(abs_path):
+        console.print(
+            f"[yellow]Note: repo not indexed yet. Run: yacodebase-mcp index {abs_path}[/yellow]"
+        )
+
+
+@hook.command("uninstall")
+@click.argument("repo_path", default=".", type=click.Path(file_okay=False))
+def hook_uninstall(repo_path: str) -> None:
+    """Remove yacodebase-mcp post-commit hook from REPO_PATH."""
+    from .hook import uninstall_hook
+
+    abs_path = str(Path(repo_path).resolve())
+    try:
+        result = uninstall_hook(abs_path)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise SystemExit(1)
+    if result["status"] == "not_installed":
+        console.print("[yellow]Hook not installed.[/yellow]")
+    else:
+        console.print("[green]Hook removed.[/green]")
+
+
+@hook.command("status")
+@click.argument("repo_path", required=False, type=click.Path(file_okay=False))
+def hook_status_cmd(repo_path: str | None) -> None:
+    """Show hook status for indexed repos (or a specific REPO_PATH)."""
+    from .hook import hook_status
+    from .store import get_all_repos
+
+    if repo_path:
+        candidates = {str(Path(repo_path).resolve()): {"last_indexed": "—"}}
+    else:
+        candidates = get_all_repos()
+
+    if not candidates:
+        console.print("No repos indexed.")
+        return
+
+    table = Table(show_header=True, expand=False)
+    table.add_column("Repo path", overflow="fold")
+    table.add_column("Hook installed")
+    table.add_column("Last indexed")
+
+    for path, meta in candidates.items():
+        installed = "[green]yes[/green]" if hook_status(path) else "[red]no[/red]"
+        last = (meta.get("last_indexed") or "—")[:19]
+        table.add_row(path, installed, last)
 
     wide_console = Console(width=10000)
     wide_console.print(table)
