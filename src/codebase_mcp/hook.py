@@ -15,7 +15,10 @@ def _hook_path(repo: Path) -> Path:
 
 
 def install_hook(repo_path: str) -> dict:
-    """Install post-commit hook. Returns {"status": "installed"|"appended"|"already", "path": str}."""
+    """Install post-commit hook.
+
+    Returns {"status": "installed"|"appended"|"already", "path": str}.
+    """
     abs_path = Path(repo_path).resolve()
     if not (abs_path / ".git").is_dir():
         raise ValueError(f"Not a git repo: {abs_path}")
@@ -36,8 +39,13 @@ def install_hook(repo_path: str) -> dict:
 
 
 def uninstall_hook(repo_path: str) -> dict:
-    """Remove our block from post-commit hook. Returns {"status": "removed"|"not_installed"}."""
+    """Remove our block from post-commit hook.
+
+    Returns {"status": "removed"|"not_installed"}.
+    """
     abs_path = Path(repo_path).resolve()
+    if not (abs_path / ".git").is_dir():
+        raise ValueError(f"Not a git repo: {abs_path}")
     hook = _hook_path(abs_path)
 
     if not hook.exists():

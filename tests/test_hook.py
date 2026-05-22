@@ -1,5 +1,4 @@
 import stat
-from pathlib import Path
 
 import pytest
 
@@ -78,6 +77,13 @@ def test_uninstall_not_installed(git_repo):
 
     result = uninstall_hook(str(git_repo))
     assert result["status"] == "not_installed"
+
+
+def test_uninstall_not_git_repo(tmp_path):
+    from codebase_mcp.hook import uninstall_hook
+
+    with pytest.raises(ValueError, match="Not a git repo"):
+        uninstall_hook(str(tmp_path))
 
 
 def test_hook_status_true(git_repo):
