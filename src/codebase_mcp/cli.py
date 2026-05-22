@@ -196,24 +196,32 @@ def install():
 
 
 def _do_install(agent_name: str, dry_run: bool) -> None:
-    from .agents import AGENTS, install_agent
+    from .agents import AGENTS
 
     agent = AGENTS[agent_name]
+    path = str(agent.config_path())
     try:
-        status = install_agent(agent, dry_run=dry_run)
+        data = agent.read_config()
+    except (json.JSONDecodeError, OSError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise SystemExit(1)
+
+    if agent.is_installed(data):
+        console.print(f"[yellow]Already configured: {path}[/yellow]")
+        return
+
+    new_data = agent.merge(data)
+    if dry_run:
+        console.print(f"[bold]Would write to {path}:[/bold]")
+        console.print(json.dumps(new_data, indent=2))
+        return
+
+    try:
+        agent.write_config(new_data)
     except OSError as e:
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1)
-    path = str(agent.config_path())
-    if status == "already":
-        console.print(f"[yellow]Already configured: {path}[/yellow]")
-    elif status == "dry_run":
-        data = agent.read_config()
-        new_data = agent.merge(data)
-        console.print(f"[bold]Would write to {path}:[/bold]")
-        console.print(json.dumps(new_data, indent=2))
-    else:
-        console.print(f"[green]Installed: {path}[/green]")
+    console.print(f"[green]Installed: {path}[/green]")
 
 
 @install.command("claude-code")
@@ -267,7 +275,7 @@ def install_all(dry_run: bool) -> None:
     for name, agent in AGENTS.items():
         try:
             status = install_agent(agent, dry_run=dry_run)
-        except OSError as e:
+        except (json.JSONDecodeError, OSError) as e:
             console.print(f"[red]{name}: error — {e}[/red]")
             continue
         path = str(agent.config_path())
@@ -315,7 +323,7 @@ def hook_install(repo_path: str) -> None:
     abs_path = str(Path(repo_path).resolve())
     try:
         result = install_hook(abs_path)
-    except ValueError as e:
+    except (ValueError, OSError) as e:
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1)
 
@@ -343,7 +351,7 @@ def hook_uninstall(repo_path: str) -> None:
     abs_path = str(Path(repo_path).resolve())
     try:
         result = uninstall_hook(abs_path)
-    except ValueError as e:
+    except (ValueError, OSError) as e:
         console.print(f"[red]{e}[/red]")
         raise SystemExit(1)
     if result["status"] == "not_installed":

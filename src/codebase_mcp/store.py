@@ -19,7 +19,12 @@ def _data_dir() -> Path:
             old.rename(new)
         except OSError:
             import shutil
-            shutil.move(str(old), str(new))
+            import warnings
+
+            try:
+                shutil.move(str(old), str(new))
+            except OSError as move_err:
+                warnings.warn(f"Could not migrate data dir {old} → {new}: {move_err}", stacklevel=2)
     return new
 
 

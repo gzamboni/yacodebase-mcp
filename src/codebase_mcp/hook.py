@@ -63,6 +63,9 @@ def uninstall_hook(repo_path: str) -> dict:
             if new_lines and new_lines[-1].strip() == "":
                 new_lines.pop()
             i += 1
+            # skip blank lines between marker and command (tolerates hand-edited files)
+            while i < len(lines) and lines[i].strip() == "":
+                i += 1
             if i < len(lines) and HOOK_CMD in lines[i]:
                 i += 1
             continue

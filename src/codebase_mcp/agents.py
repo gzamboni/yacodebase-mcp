@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,8 +38,10 @@ class Agent:
         except OSError as e:
             raise OSError(f"Cannot write {self.name} config to {p}: {e}") from e
 
-    def is_installed(self) -> bool:
-        return self._check_fn(self.read_config())
+    def is_installed(self, data: dict | None = None) -> bool:
+        if data is None:
+            data = self.read_config()
+        return self._check_fn(data)
 
     def merge(self, data: dict) -> dict:
         return self._merge_fn(data)
@@ -84,6 +87,9 @@ def _check_zed(data: dict) -> bool:
 def _copilot_path() -> Path:
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+        return Path(appdata) / "Code" / "User" / "settings.json"
     return Path.home() / ".config" / "Code" / "User" / "settings.json"
 
 
