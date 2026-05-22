@@ -307,11 +307,10 @@ def hook():
 
 
 @hook.command("install")
-@click.argument("repo_path", default=".", type=click.Path(file_okay=False))
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 def hook_install(repo_path: str) -> None:
     """Install post-commit hook in REPO_PATH (default: current dir)."""
     from .hook import install_hook
-    from .store import is_indexed
 
     abs_path = str(Path(repo_path).resolve())
     try:
@@ -336,7 +335,7 @@ def hook_install(repo_path: str) -> None:
 
 
 @hook.command("uninstall")
-@click.argument("repo_path", default=".", type=click.Path(file_okay=False))
+@click.argument("repo_path", default=".", type=click.Path(exists=True, file_okay=False))
 def hook_uninstall(repo_path: str) -> None:
     """Remove yacodebase-mcp post-commit hook from REPO_PATH."""
     from .hook import uninstall_hook
@@ -358,7 +357,6 @@ def hook_uninstall(repo_path: str) -> None:
 def hook_status_cmd(repo_path: str | None) -> None:
     """Show hook status for indexed repos (or a specific REPO_PATH)."""
     from .hook import hook_status
-    from .store import get_all_repos
 
     if repo_path:
         candidates = {str(Path(repo_path).resolve()): {"last_indexed": "—"}}
@@ -372,7 +370,7 @@ def hook_status_cmd(repo_path: str | None) -> None:
     table = Table(show_header=True, expand=False)
     table.add_column("Repo path", overflow="fold")
     table.add_column("Hook installed")
-    table.add_column("Last indexed")
+    table.add_column("Last Indexed")
 
     for path, meta in candidates.items():
         installed = "[green]yes[/green]" if hook_status(path) else "[red]no[/red]"
