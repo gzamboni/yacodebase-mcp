@@ -15,7 +15,11 @@ def _data_dir() -> Path:
     old = Path.home() / ".codebase-mcp"
     new = Path.home() / ".yacodebase-mcp"
     if old.exists() and not new.exists():
-        old.rename(new)
+        try:
+            old.rename(new)
+        except OSError:
+            import shutil
+            shutil.move(str(old), str(new))
     return new
 
 
