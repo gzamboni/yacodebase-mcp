@@ -473,12 +473,41 @@ def completion(shell: str) -> None:
     """
     from click.shell_completion import BashComplete, FishComplete, ZshComplete
 
-    cls = {"bash": BashComplete, "zsh": ZshComplete, "fish": FishComplete}[shell]
+    if shell == "fish":
+        # Click 8.4 changed format_completion to emit type\nvalue\nhelp (one field
+        # per line). Fish splits command output on newlines when capturing into a
+        # variable, so the for-loop template gets individual fields, not triplets.
+        # Emit a corrected script that reads $response in groups of three instead.
+        click.echo(
+            """\
+function _yacodebase_mcp_completion;
+    set -l response (env _YACODEBASE_MCP_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) yacodebase-mcp);
+    set -l n (count $response);
+    set -l i 1;
+    while test $i -le $n;
+        set -l type $response[$i];
+        set -l value $response[(math $i + 1)];
+        set -l help $response[(math $i + 2)];
+        set i (math $i + 3);
+        if test $type = "dir";
+            __fish_complete_directories $value;
+        else if test $type = "file";
+            __fish_complete_path $value;
+        else if test $type = "plain";
+            if test $help != "_";
+                echo $value\\t$help;
+            else;
+                echo $value;
+            end;
+        end;
+    end;
+end;
+
+complete --no-files --command yacodebase-mcp --arguments "(_yacodebase_mcp_completion)";
+"""
+        )
+        return
+    cls = {"bash": BashComplete, "zsh": ZshComplete}[shell]
     ctx = main.make_context("yacodebase-mcp", [], resilient_parsing=True)
     comp = cls(main, ctx, "yacodebase-mcp", "_YACODEBASE_MCP_COMPLETE")
-    source = comp.source()
-    # Click 8.x bug: fish template emits literal \n as string split separator;
-    # fish needs the \t escape notation to split on tab.
-    if shell == "fish":
-        source = source.replace("string split \n ", "string split \\t ")
-    click.echo(source, nl=False)
+    click.echo(comp.source(), nl=False)
