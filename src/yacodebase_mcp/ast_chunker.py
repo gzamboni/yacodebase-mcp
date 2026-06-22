@@ -110,9 +110,9 @@ def chunk_file_ast(
         if node.type == "ERROR":
             return
         if node.type in node_types:
-            text = content_bytes[node.start_byte : node.end_byte].decode(
-                "utf-8", errors="replace"
-            )[:max_chunk_chars]
+            text = content_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="replace")[
+                :max_chunk_chars
+            ]
             chunks.append(
                 {
                     "text": text,
