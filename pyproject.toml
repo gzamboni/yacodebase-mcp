@@ -41,6 +41,7 @@ Issues     = "https://github.com/gzamboni/yacodebase-mcp/issues"
 [project.scripts]
 yacodebase-mcp = "yacodebase_mcp.cli:main"
 codebase-mcp   = "yacodebase_mcp.cli:main"
+ycb            = "yacodebase_mcp.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yacodebase_mcp"]

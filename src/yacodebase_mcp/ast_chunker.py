@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-MAX_CHUNK_CHARS = 16_000  # 8192 token limit; dense code ~2 chars/token → 16k chars safe
+MAX_CHUNK_CHARS = 10_000  # fallback constant; prefer passing max_chunk_chars explicitly
 
 SEMANTIC_NODES: dict[str, set[str]] = {
     "python": {"function_definition", "decorated_definition"},
@@ -89,7 +89,9 @@ def _get_parser(lang_name: str):
         return None
 
 
-def chunk_file_ast(content: str, filepath: str, repo_path: str) -> list[dict] | None:
+def chunk_file_ast(
+    content: str, filepath: str, repo_path: str, max_chunk_chars: int = MAX_CHUNK_CHARS
+) -> list[dict] | None:
     lang_name = EXT_TO_LANG.get(Path(filepath).suffix)
     if not lang_name:
         return None
@@ -99,7 +101,8 @@ def chunk_file_ast(content: str, filepath: str, repo_path: str) -> list[dict] | 
         return None
 
     node_types = SEMANTIC_NODES[lang_name]
-    tree = parser.parse(content.encode("utf-8", errors="replace"))
+    content_bytes = content.encode("utf-8", errors="replace")
+    tree = parser.parse(content_bytes)
 
     chunks: list[dict] = []
 
@@ -107,7 +110,9 @@ def chunk_file_ast(content: str, filepath: str, repo_path: str) -> list[dict] | 
         if node.type == "ERROR":
             return
         if node.type in node_types:
-            text = content[node.start_byte : node.end_byte][:MAX_CHUNK_CHARS]
+            text = content_bytes[node.start_byte : node.end_byte].decode(
+                "utf-8", errors="replace"
+            )[:max_chunk_chars]
             chunks.append(
                 {
                     "text": text,
