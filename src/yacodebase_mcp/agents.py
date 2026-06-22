@@ -216,7 +216,8 @@ _INJECT_BLOCK = """\
 <!-- yacodebase-mcp:start -->
 ## Codebase Search (yacodebase-mcp)
 
-**First action every session: call `session_bootstrap`** — confirms the index is active and orients on recent changes before doing anything else.
+**First action every session: call `session_bootstrap`** — confirms the index is active
+and orients on recent changes before doing anything else.
 
 This repository is indexed with yacodebase-mcp (semantic vector search over code).
 

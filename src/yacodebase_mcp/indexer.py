@@ -104,7 +104,9 @@ def _chunk_file_lines(
     return chunks
 
 
-def chunk_file(content: str, filepath: str, repo_path: str, max_chunk_chars: int = 10_000) -> list[dict]:
+def chunk_file(
+    content: str, filepath: str, repo_path: str, max_chunk_chars: int = 10_000
+) -> list[dict]:
     try:
         chunks = chunk_file_ast(content, filepath, repo_path, max_chunk_chars=max_chunk_chars)
     except Exception:

@@ -7,14 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from . import indexer
-from .settings import (
-    KNOWN_MODELS,
-    get_settings,
-    load_settings,
-    patch_setting,
-    save_settings,
-    unset_settings_fields,
-)
+from .settings import KNOWN_MODELS, load_settings, patch_setting, unset_settings_fields
 from .store import get_all_repos, get_client, is_indexed, load_config, remove_repo
 
 console = Console()
@@ -162,7 +155,7 @@ def set_api_key(key: str, project: bool) -> None:
     """Set the API key for the embedding provider."""
     project_path = os.getcwd() if project else None
     if project:
-        console.print("[yellow]Warning: storing api_key in project file may expose it in git.[/yellow]")
+        console.print("[yellow]Warning: api_key in project file may be exposed in git.[/yellow]")
     patch_setting("api_key", key, project_path=project_path)
     scope = "project" if project else "global"
     console.print(f"[green]api_key set ({scope}).[/green]")
@@ -522,7 +515,7 @@ def completion(shell: str) -> None:
     zsh:   source <(yacodebase-mcp completion zsh)
     fish:  yacodebase-mcp completion fish | source
     """
-    from click.shell_completion import BashComplete, FishComplete, ZshComplete
+    from click.shell_completion import BashComplete, ZshComplete
 
     if shell == "fish":
         # Click 8.4 changed format_completion to emit type\nvalue\nhelp (one field
