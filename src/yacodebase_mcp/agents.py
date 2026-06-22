@@ -72,6 +72,7 @@ def _appdata() -> Path:
 
 # ── JSON agent helpers ────────────────────────────────────────────────────────
 
+
 def _std_entry() -> dict:
     return {"command": _server_cmd(), "args": list(MCP_SERVER_ARGS)}
 
@@ -118,6 +119,7 @@ def _check_zed(data: dict) -> bool:
 
 # ── TOML agent helpers (Codex CLI) ────────────────────────────────────────────
 
+
 def _merge_codex(data: dict) -> dict:
     result = copy.deepcopy(data)
     result.setdefault("mcp_servers", {})[MCP_SERVER_NAME] = {
@@ -132,6 +134,7 @@ def _check_codex(data: dict) -> bool:
 
 
 # ── OS-aware path functions ───────────────────────────────────────────────────
+
 
 def _copilot_path() -> Path:
     if sys.platform == "darwin":
@@ -216,7 +219,8 @@ _INJECT_BLOCK = """\
 <!-- yacodebase-mcp:start -->
 ## Codebase Search (yacodebase-mcp)
 
-**First action every session: call `session_bootstrap`** — confirms the index is active and orients on recent changes before doing anything else.
+**First action every session: call `session_bootstrap`** — confirms the index is active
+and orients on recent changes before doing anything else.
 
 This repository is indexed with yacodebase-mcp (semantic vector search over code).
 

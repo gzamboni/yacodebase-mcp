@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import click
@@ -6,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from . import indexer
-from .settings import KNOWN_MODELS, get_settings, save_settings, unset_settings_fields
+from .settings import KNOWN_MODELS, load_settings, patch_setting, unset_settings_fields
 from .store import get_all_repos, get_client, is_indexed, load_config, remove_repo
 
 console = Console()
@@ -114,6 +115,14 @@ def config_set():
     """Set a config value."""
 
 
+_project_opt = click.option(
+    "--project",
+    is_flag=True,
+    default=False,
+    help="Write to .yacodebase/settings.json in current directory (project scope).",
+)
+
+
 @config_set.command("embedding-model")
 @click.argument("model")
 @click.option(
@@ -122,7 +131,8 @@ def config_set():
     default=None,
     help="Vector dimension (required for unknown models).",
 )
-def set_embedding_model(model: str, vector_size: int | None) -> None:
+@_project_opt
+def set_embedding_model(model: str, vector_size: int | None, project: bool) -> None:
     """Set the embedding model. Known models derive vector-size automatically."""
     if model in KNOWN_MODELS:
         resolved_size = KNOWN_MODELS[model]
@@ -131,64 +141,98 @@ def set_embedding_model(model: str, vector_size: int | None) -> None:
     else:
         console.print(f"[red]Unknown model '{model}'. Provide vector size: --vector-size 768[/red]")
         raise SystemExit(1)
-    s = get_settings()
-    s.embedding_model = model
-    s.vector_size = resolved_size
-    save_settings(s)
-    console.print(f"[green]embedding_model={model}, vector_size={resolved_size}[/green]")
+    project_path = os.getcwd() if project else None
+    patch_setting("embedding_model", model, project_path=project_path)
+    patch_setting("vector_size", resolved_size, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]embedding_model={model}, vector_size={resolved_size} ({scope})[/green]")
 
 
 @config_set.command("api-key")
 @click.argument("key")
-def set_api_key(key: str) -> None:
+@_project_opt
+def set_api_key(key: str, project: bool) -> None:
     """Set the API key for the embedding provider."""
-    s = get_settings()
-    s.api_key = key
-    save_settings(s)
-    console.print("[green]api_key set.[/green]")
+    project_path = os.getcwd() if project else None
+    if project:
+        console.print("[yellow]Warning: api_key in project file may be exposed in git.[/yellow]")
+    patch_setting("api_key", key, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]api_key set ({scope}).[/green]")
 
 
 @config_set.command("api-base")
 @click.argument("url")
-def set_api_base(url: str) -> None:
+@_project_opt
+def set_api_base(url: str, project: bool) -> None:
     """Set the base URL for the embedding API (for OpenAI-compatible providers)."""
-    s = get_settings()
-    s.api_base = url
-    save_settings(s)
-    console.print(f"[green]api_base={url}[/green]")
+    project_path = os.getcwd() if project else None
+    patch_setting("api_base", url, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]api_base={url} ({scope})[/green]")
+
+
+@config_set.command("max-chunk-chars")
+@click.argument("chars", type=int)
+@_project_opt
+def set_max_chunk_chars(chars: int, project: bool) -> None:
+    """Set max characters per chunk (default 10000). Lower if hitting token limits."""
+    if chars < 1000:
+        console.print("[red]Value too low (min 1000).[/red]")
+        raise SystemExit(1)
+    project_path = os.getcwd() if project else None
+    patch_setting("max_chunk_chars", chars, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]max_chunk_chars={chars} ({scope})[/green]")
 
 
 @config.command("list")
-def config_list() -> None:
-    """Show current global settings."""
-    s = get_settings()
+@click.option(
+    "--project",
+    is_flag=True,
+    default=False,
+    help="Show effective settings for current directory (global merged with project).",
+)
+def config_list(project: bool) -> None:
+    """Show current settings. Use --project to see effective settings for current directory."""
+    repo_path = os.getcwd() if project else None
+    s = load_settings(repo_path=repo_path)
 
     if s.api_key:
         masked_key = (s.api_key[:5] + "***") if len(s.api_key) > 5 else (s.api_key + "***")
     else:
         masked_key = "(not set)"
 
-    table = Table(show_header=False, box=None, padding=(0, 2))
+    scope_label = f"effective for {os.getcwd()}" if project else "global"
+    table = Table(show_header=False, box=None, padding=(0, 2), title=scope_label)
     table.add_column("Key", style="bold")
     table.add_column("Value")
     table.add_row("embedding_model", s.embedding_model)
     table.add_row("vector_size", str(s.vector_size))
     table.add_row("api_key", masked_key)
     table.add_row("api_base", s.api_base or "(not set)")
+    table.add_row("max_chunk_chars", str(s.max_chunk_chars))
     console.print(table)
 
 
 @config.command("unset")
-@click.argument("key", type=click.Choice(["embedding-model", "api-key", "api-base"]))
-def config_unset(key: str) -> None:
+@click.argument(
+    "key",
+    type=click.Choice(["embedding-model", "api-key", "api-base", "max-chunk-chars"]),
+)
+@_project_opt
+def config_unset(key: str, project: bool) -> None:
     """Remove a setting, reverting to default or env var fallback."""
     field_map = {
         "embedding-model": ["embedding_model", "vector_size"],
         "api-key": ["api_key"],
         "api-base": ["api_base"],
+        "max-chunk-chars": ["max_chunk_chars"],
     }
-    unset_settings_fields(field_map[key])
-    console.print(f"[green]{key} unset.[/green]")
+    project_path = os.getcwd() if project else None
+    unset_settings_fields(field_map[key], project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]{key} unset ({scope}).[/green]")
 
 
 @main.group()
@@ -471,7 +515,7 @@ def completion(shell: str) -> None:
     zsh:   source <(yacodebase-mcp completion zsh)
     fish:  yacodebase-mcp completion fish | source
     """
-    from click.shell_completion import BashComplete, FishComplete, ZshComplete
+    from click.shell_completion import BashComplete, ZshComplete
 
     if shell == "fish":
         # Click 8.4 changed format_completion to emit type\nvalue\nhelp (one field

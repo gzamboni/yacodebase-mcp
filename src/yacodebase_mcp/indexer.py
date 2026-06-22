@@ -57,7 +57,6 @@ CHUNK_LINES = 100
 OVERLAP_LINES = 20
 MIN_LINES_FOR_SPLIT = 20
 BATCH_SIZE = 100
-MAX_CHUNK_CHARS = 16_000  # 8192 token limit; dense code ~2 chars/token → 16k chars safe
 
 
 def iter_files(repo_path: Path):
@@ -69,12 +68,14 @@ def iter_files(repo_path: Path):
                 yield filepath
 
 
-def _chunk_file_lines(content: str, filepath: str, repo_path: str) -> list[dict]:
+def _chunk_file_lines(
+    content: str, filepath: str, repo_path: str, max_chunk_chars: int = 10_000
+) -> list[dict]:
     lines = content.splitlines()
     if len(lines) < MIN_LINES_FOR_SPLIT:
         return [
             {
-                "text": content[:MAX_CHUNK_CHARS],
+                "text": content[:max_chunk_chars],
                 "file": filepath,
                 "start_line": 1,
                 "end_line": len(lines),
@@ -89,7 +90,7 @@ def _chunk_file_lines(content: str, filepath: str, repo_path: str) -> list[dict]
         chunk_lines = lines[i : i + CHUNK_LINES]
         if not any(line.strip() for line in chunk_lines):
             continue
-        text = "\n".join(chunk_lines)[:MAX_CHUNK_CHARS]
+        text = "\n".join(chunk_lines)[:max_chunk_chars]
         chunks.append(
             {
                 "text": text,
@@ -103,12 +104,14 @@ def _chunk_file_lines(content: str, filepath: str, repo_path: str) -> list[dict]
     return chunks
 
 
-def chunk_file(content: str, filepath: str, repo_path: str) -> list[dict]:
+def chunk_file(
+    content: str, filepath: str, repo_path: str, max_chunk_chars: int = 10_000
+) -> list[dict]:
     try:
-        chunks = chunk_file_ast(content, filepath, repo_path)
+        chunks = chunk_file_ast(content, filepath, repo_path, max_chunk_chars=max_chunk_chars)
     except Exception:
         chunks = None
-    return chunks if chunks else _chunk_file_lines(content, filepath, repo_path)
+    return chunks if chunks else _chunk_file_lines(content, filepath, repo_path, max_chunk_chars)
 
 
 def _embed_batch(texts: list[str], client: OpenAI, model: str) -> list[list[float]]:
@@ -130,10 +133,11 @@ def index_repo(repo_path: str) -> int:
     """Index a repo. Always replaces any existing index for this path."""
     abs_path = str(Path(repo_path).resolve())
     repo_id = get_repo_id(abs_path)
-    settings = get_settings()
+    settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
     qdrant = get_client()
 
+    max_chunk_chars = settings.max_chunk_chars
     all_chunks: list[dict] = []
     for filepath in iter_files(Path(abs_path)):
         try:
@@ -141,9 +145,9 @@ def index_repo(repo_path: str) -> int:
         except Exception:
             continue
         rel_path = str(filepath.relative_to(abs_path))
-        all_chunks.extend(chunk_file(content, rel_path, abs_path))
+        all_chunks.extend(chunk_file(content, rel_path, abs_path, max_chunk_chars))
     for c in all_chunks:
-        c["text"] = c["text"][:MAX_CHUNK_CHARS]
+        c["text"] = c["text"][:max_chunk_chars]
     all_chunks = [c for c in all_chunks if c["text"].strip()]
 
     ensure_collection(qdrant, repo_id, vector_size=settings.vector_size)
@@ -173,7 +177,7 @@ def index_repo_incremental(repo_path: str) -> int:
     """Index only changed/new files. Returns count of newly indexed chunks."""
     abs_path = str(Path(repo_path).resolve())
     repo_id = get_repo_id(abs_path)
-    settings = get_settings()
+    settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
     qdrant = get_client()
 
@@ -210,6 +214,7 @@ def index_repo_incremental(repo_path: str) -> int:
         except Exception:
             pass
 
+    max_chunk_chars = settings.max_chunk_chars
     all_new_chunks: list[dict] = []
     for filepath in changed_files:
         try:
@@ -217,10 +222,10 @@ def index_repo_incremental(repo_path: str) -> int:
         except Exception:
             continue
         rel = str(filepath.relative_to(abs_path))
-        all_new_chunks.extend(chunk_file(content, rel, abs_path))
+        all_new_chunks.extend(chunk_file(content, rel, abs_path, max_chunk_chars))
 
     for c in all_new_chunks:
-        c["text"] = c["text"][:MAX_CHUNK_CHARS]
+        c["text"] = c["text"][:max_chunk_chars]
     all_new_chunks = [c for c in all_new_chunks if c["text"].strip()]
 
     for i in range(0, len(all_new_chunks), BATCH_SIZE):
