@@ -172,6 +172,32 @@ def set_api_base(url: str, project: bool) -> None:
     console.print(f"[green]api_base={url} ({scope})[/green]")
 
 
+@config_set.command("qdrant-url")
+@click.argument("url")
+@_project_opt
+def set_qdrant_url(url: str, project: bool) -> None:
+    """Set the URL of a remote Qdrant server (self-hosted or Qdrant Cloud). Unset to use local on-disk Qdrant."""
+    project_path = os.getcwd() if project else None
+    patch_setting("qdrant_url", url, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]qdrant_url={url} ({scope})[/green]")
+
+
+@config_set.command("qdrant-api-key")
+@click.argument("key")
+@_project_opt
+def set_qdrant_api_key(key: str, project: bool) -> None:
+    """Set the API key for a remote Qdrant server (e.g. Qdrant Cloud)."""
+    project_path = os.getcwd() if project else None
+    if project:
+        console.print(
+            "[yellow]Warning: qdrant_api_key in project file may be exposed in git.[/yellow]"
+        )
+    patch_setting("qdrant_api_key", key, project_path=project_path)
+    scope = "project" if project else "global"
+    console.print(f"[green]qdrant_api_key set ({scope}).[/green]")
+
+
 @config_set.command("max-chunk-chars")
 @click.argument("chars", type=int)
 @_project_opt
@@ -203,6 +229,15 @@ def config_list(project: bool) -> None:
     else:
         masked_key = "(not set)"
 
+    if s.qdrant_api_key:
+        masked_qdrant_key = (
+            (s.qdrant_api_key[:5] + "***")
+            if len(s.qdrant_api_key) > 5
+            else (s.qdrant_api_key + "***")
+        )
+    else:
+        masked_qdrant_key = "(not set)"
+
     scope_label = f"effective for {os.getcwd()}" if project else "global"
     table = Table(show_header=False, box=None, padding=(0, 2), title=scope_label)
     table.add_column("Key", style="bold")
@@ -212,13 +247,24 @@ def config_list(project: bool) -> None:
     table.add_row("api_key", masked_key)
     table.add_row("api_base", s.api_base or "(not set)")
     table.add_row("max_chunk_chars", str(s.max_chunk_chars))
+    table.add_row("qdrant_url", s.qdrant_url or "(not set, using local)")
+    table.add_row("qdrant_api_key", masked_qdrant_key)
     console.print(table)
 
 
 @config.command("unset")
 @click.argument(
     "key",
-    type=click.Choice(["embedding-model", "api-key", "api-base", "max-chunk-chars"]),
+    type=click.Choice(
+        [
+            "embedding-model",
+            "api-key",
+            "api-base",
+            "max-chunk-chars",
+            "qdrant-url",
+            "qdrant-api-key",
+        ]
+    ),
 )
 @_project_opt
 def config_unset(key: str, project: bool) -> None:
@@ -228,6 +274,8 @@ def config_unset(key: str, project: bool) -> None:
         "api-key": ["api_key"],
         "api-base": ["api_base"],
         "max-chunk-chars": ["max_chunk_chars"],
+        "qdrant-url": ["qdrant_url"],
+        "qdrant-api-key": ["qdrant_api_key"],
     }
     project_path = os.getcwd() if project else None
     unset_settings_fields(field_map[key], project_path=project_path)

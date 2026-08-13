@@ -59,6 +59,24 @@ def test_save_settings_omits_none_fields(tmp_path):
     assert "api_base" not in data
 
 
+def test_qdrant_settings_round_trip(tmp_path):
+    from yacodebase_mcp.settings import Settings, load_settings, save_settings
+
+    save_settings(Settings(qdrant_url="http://qdrant.internal:6333", qdrant_api_key="qk-test"))
+    loaded = load_settings()
+    assert loaded.qdrant_url == "http://qdrant.internal:6333"
+    assert loaded.qdrant_api_key == "qk-test"
+
+
+def test_qdrant_settings_omitted_when_none(tmp_path):
+    from yacodebase_mcp.settings import Settings, save_settings
+
+    save_settings(Settings(qdrant_url=None, qdrant_api_key=None))
+    data = json.loads((tmp_path / "settings.json").read_text())
+    assert "qdrant_url" not in data
+    assert "qdrant_api_key" not in data
+
+
 def test_known_models_table():
     from yacodebase_mcp.settings import KNOWN_MODELS
 

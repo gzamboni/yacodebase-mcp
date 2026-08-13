@@ -118,6 +118,25 @@ def test_index_repo_saves_to_config(fixture_repo):
     assert is_indexed(str(fixture_repo.resolve()))
 
 
+def test_index_repo_passes_repo_path_to_get_client(fixture_repo, monkeypatch):
+    import yacodebase_mcp.indexer as indexer_mod
+
+    captured = {}
+    real_get_client = indexer_mod.get_client
+
+    def spy_get_client(repo_path=None):
+        captured["repo_path"] = repo_path
+        return real_get_client(repo_path)
+
+    monkeypatch.setattr(indexer_mod, "get_client", spy_get_client)
+
+    with patch("yacodebase_mcp.indexer.OpenAI") as MockOpenAI:
+        MockOpenAI.return_value = _mock_openai()
+        indexer_mod.index_repo(str(fixture_repo))
+
+    assert captured["repo_path"] == str(fixture_repo.resolve())
+
+
 def test_index_repo_replaces_existing(fixture_repo):
     from yacodebase_mcp.indexer import index_repo
     from yacodebase_mcp.store import get_client, get_repo_id, load_config

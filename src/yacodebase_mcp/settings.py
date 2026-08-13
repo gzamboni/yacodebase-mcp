@@ -10,8 +10,16 @@ KNOWN_MODELS: dict[str, int] = {
     "text-embedding-ada-002": 1536,
 }
 
-_FIELDS = {"embedding_model", "vector_size", "api_key", "api_base", "max_chunk_chars"}
-_OPTIONAL_FIELDS = {"api_key", "api_base"}
+_FIELDS = {
+    "embedding_model",
+    "vector_size",
+    "api_key",
+    "api_base",
+    "max_chunk_chars",
+    "qdrant_url",
+    "qdrant_api_key",
+}
+_OPTIONAL_FIELDS = {"api_key", "api_base", "qdrant_url", "qdrant_api_key"}
 
 DEFAULT_MAX_CHUNK_CHARS = 10_000
 
@@ -23,6 +31,8 @@ class Settings:
     api_key: str | None = None
     api_base: str | None = None
     max_chunk_chars: int = DEFAULT_MAX_CHUNK_CHARS
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
 
 
 def _settings_path() -> Path:

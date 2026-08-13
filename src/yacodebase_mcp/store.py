@@ -40,7 +40,12 @@ def get_repo_id(repo_path: str) -> str:
     return hashlib.md5(repo_path.encode()).hexdigest()[:16]
 
 
-def get_client() -> QdrantClient:
+def get_client(repo_path: str | None = None) -> QdrantClient:
+    from .settings import load_settings
+
+    settings = load_settings(repo_path)
+    if settings.qdrant_url:
+        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
     _qdrant_path().mkdir(parents=True, exist_ok=True)
     return QdrantClient(path=str(_qdrant_path()))
 
