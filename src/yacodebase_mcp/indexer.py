@@ -135,7 +135,7 @@ def index_repo(repo_path: str) -> int:
     repo_id = get_repo_id(abs_path)
     settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
-    qdrant = get_client()
+    qdrant = get_client(repo_path=abs_path)
 
     max_chunk_chars = settings.max_chunk_chars
     all_chunks: list[dict] = []
@@ -179,7 +179,7 @@ def index_repo_incremental(repo_path: str) -> int:
     repo_id = get_repo_id(abs_path)
     settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
-    qdrant = get_client()
+    qdrant = get_client(repo_path=abs_path)
 
     stored_hashes = load_file_hashes(abs_path)
     current_hashes: dict[str, str] = {}
