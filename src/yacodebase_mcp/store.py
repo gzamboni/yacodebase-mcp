@@ -45,7 +45,9 @@ def get_client(repo_path: str | None = None) -> QdrantClient:
 
     settings = load_settings(repo_path)
     if settings.qdrant_url:
-        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
+        # ponytail: default client timeout (5s) is too short for batch upserts over a
+        # network link; bump to 60s rather than adding a config knob nobody's asked for.
+        return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key, timeout=60)
     _qdrant_path().mkdir(parents=True, exist_ok=True)
     return QdrantClient(path=str(_qdrant_path()))
 
