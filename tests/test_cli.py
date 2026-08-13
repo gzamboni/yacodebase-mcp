@@ -160,6 +160,56 @@ def test_config_set_api_base(runner):
     assert get_settings().api_base == "http://localhost:11434/v1"
 
 
+def test_config_set_qdrant_url(runner):
+    from yacodebase_mcp.cli import main
+    from yacodebase_mcp.settings import get_settings
+
+    result = runner.invoke(main, ["config", "set", "qdrant-url", "http://qdrant.internal:6333"])
+    assert result.exit_code == 0
+    assert get_settings().qdrant_url == "http://qdrant.internal:6333"
+
+
+def test_config_set_qdrant_api_key(runner):
+    from yacodebase_mcp.cli import main
+    from yacodebase_mcp.settings import get_settings
+
+    result = runner.invoke(main, ["config", "set", "qdrant-api-key", "qk-testkey"])
+    assert result.exit_code == 0
+    assert get_settings().qdrant_api_key == "qk-testkey"
+
+
+def test_config_list_shows_masked_qdrant_api_key(runner):
+    from yacodebase_mcp.cli import main
+
+    runner.invoke(main, ["config", "set", "qdrant-url", "http://qdrant.internal:6333"])
+    runner.invoke(main, ["config", "set", "qdrant-api-key", "qk-abcdefgh"])
+    result = runner.invoke(main, ["config", "list"])
+    assert result.exit_code == 0
+    assert "http://qdrant.internal:6333" in result.output
+    assert "qk-abcdefgh" not in result.output
+    assert "qk-ab***" in result.output
+
+
+def test_config_unset_qdrant_url(runner):
+    from yacodebase_mcp.cli import main
+    from yacodebase_mcp.settings import get_settings
+
+    runner.invoke(main, ["config", "set", "qdrant-url", "http://qdrant.internal:6333"])
+    result = runner.invoke(main, ["config", "unset", "qdrant-url"])
+    assert result.exit_code == 0
+    assert get_settings().qdrant_url is None
+
+
+def test_config_unset_qdrant_api_key(runner):
+    from yacodebase_mcp.cli import main
+    from yacodebase_mcp.settings import get_settings
+
+    runner.invoke(main, ["config", "set", "qdrant-api-key", "qk-testkey"])
+    result = runner.invoke(main, ["config", "unset", "qdrant-api-key"])
+    assert result.exit_code == 0
+    assert get_settings().qdrant_api_key is None
+
+
 def test_config_list_shows_masked_api_key(runner):
     from yacodebase_mcp.cli import main
 
