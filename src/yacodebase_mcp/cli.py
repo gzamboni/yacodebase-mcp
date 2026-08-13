@@ -256,7 +256,14 @@ def config_list(project: bool) -> None:
 @click.argument(
     "key",
     type=click.Choice(
-        ["embedding-model", "api-key", "api-base", "max-chunk-chars", "qdrant-url", "qdrant-api-key"]
+        [
+            "embedding-model",
+            "api-key",
+            "api-base",
+            "max-chunk-chars",
+            "qdrant-url",
+            "qdrant-api-key",
+        ]
     ),
 )
 @_project_opt
