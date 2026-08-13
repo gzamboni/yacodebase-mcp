@@ -48,6 +48,35 @@ def test_get_all_repos(tmp_path):
     assert p2 in repos
 
 
+def test_get_client_uses_local_path_by_default(tmp_path):
+    from yacodebase_mcp.store import _qdrant_path, get_client
+
+    client = get_client()
+    assert not client.collection_exists("nonexistent-collection")
+    assert _qdrant_path().exists()
+
+
+def test_get_client_uses_remote_url_when_configured(tmp_path, monkeypatch):
+    import yacodebase_mcp.store as store_mod
+    from yacodebase_mcp.settings import Settings, save_settings
+
+    save_settings(Settings(qdrant_url="http://example.invalid:6333", qdrant_api_key="qk-test"))
+
+    captured = {}
+
+    class FakeQdrantClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(store_mod, "QdrantClient", FakeQdrantClient)
+
+    store_mod.get_client()
+
+    assert captured["url"] == "http://example.invalid:6333"
+    assert captured["api_key"] == "qk-test"
+    assert "path" not in captured
+
+
 def test_ensure_collection_creates_new(tmp_path):
     from yacodebase_mcp.store import ensure_collection, get_client, get_repo_id
 
