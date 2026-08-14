@@ -12,7 +12,7 @@ from .knowledge import add_note as _add_note
 from .knowledge import get_notes as _get_notes
 from .knowledge import search_decisions as _search_decisions
 from .knowledge import update_decision as _update_decision
-from .store import get_all_repos, repo_key
+from .store import get_all_repos, select_repo_entry
 
 mcp = FastMCP("codebase-search")
 
@@ -61,8 +61,8 @@ def search_symbols(name: str, repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        key = repo_key(abs_path)
-        candidates = {key: config[key]} if key in config else {}
+        entry = select_repo_entry(config, abs_path)
+        candidates = {entry[0]: entry[1]} if entry else {}
     else:
         candidates = config
 
@@ -118,8 +118,8 @@ def find_todos(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        key = repo_key(abs_path)
-        candidates = {key: config[key]} if key in config else {}
+        entry = select_repo_entry(config, abs_path)
+        candidates = {entry[0]: entry[1]} if entry else {}
     else:
         candidates = config
 
@@ -189,8 +189,8 @@ def what_changed(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        key = repo_key(abs_path)
-        candidates = {key: config[key]} if key in config else {}
+        entry = select_repo_entry(config, abs_path)
+        candidates = {entry[0]: entry[1]} if entry else {}
     else:
         candidates = config
 
@@ -320,8 +320,8 @@ def session_bootstrap(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        key = repo_key(abs_path)
-        candidates = {key: config[key]} if key in config else {}
+        entry = select_repo_entry(config, abs_path)
+        candidates = {entry[0]: entry[1]} if entry else {}
     else:
         candidates = config
 

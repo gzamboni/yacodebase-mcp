@@ -40,6 +40,40 @@ def test_repo_key_falls_back_to_path_for_non_git_dirs(tmp_path):
     assert repo_key(str(plain)) == str(plain)
 
 
+def test_legacy_bare_path_entry_migrates_and_keeps_repo_id(tmp_path):
+    """A config.json entry written before branch-aware indexing (keyed by the
+    bare path) must still be reachable after upgrading, and must keep its
+    original repo_id so the existing Qdrant collection isn't orphaned."""
+    import subprocess
+
+    from yacodebase_mcp.store import add_repo, find_repo_entry, is_indexed, load_config
+
+    repo = tmp_path / "gitrepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "main"], check=True)
+
+    # Simulate a pre-upgrade config.json entry (no branch suffix, no path/branch fields).
+    config = load_config()
+    config[str(repo)] = {
+        "repo_id": "legacy123",
+        "last_indexed": "2024-01-01T00:00:00Z",
+        "chunk_count": 7,
+    }
+    from yacodebase_mcp.store import save_config
+
+    save_config(config)
+
+    assert is_indexed(str(repo))
+    key, entry = find_repo_entry(str(repo))
+    assert key == f"{repo}#main"
+    assert entry["repo_id"] == "legacy123"
+    assert str(repo) not in load_config()
+
+    add_repo(str(repo), chunk_count=8)
+    assert load_config()[key]["repo_id"] == "legacy123"
+
+
 def test_add_repo_isolates_index_per_branch(tmp_path):
     import subprocess
 

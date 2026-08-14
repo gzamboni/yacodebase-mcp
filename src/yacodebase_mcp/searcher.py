@@ -3,7 +3,7 @@ from pathlib import Path
 from openai import OpenAI
 
 from .settings import get_settings
-from .store import get_client, load_config, repo_key
+from .store import find_repo_entry, get_client, load_config
 
 TOP_K = 8
 
@@ -13,10 +13,10 @@ def search(query: str, repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        key = repo_key(abs_path)
-        if key not in config:
+        entry = find_repo_entry(abs_path)
+        if not entry:
             return f"Repo not indexed. Run: yacodebase-mcp index {repo_path}"
-        candidates = {key: config[key]}
+        candidates = {entry[0]: entry[1]}
     else:
         if not config:
             return "No repos indexed. Run: yacodebase-mcp index /path/to/repo"

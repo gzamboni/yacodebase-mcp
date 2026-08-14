@@ -8,7 +8,7 @@ from rich.table import Table
 
 from . import indexer
 from .settings import KNOWN_MODELS, load_settings, patch_setting, unset_settings_fields
-from .store import get_all_repos, get_client, is_indexed, load_config, remove_repo, repo_key
+from .store import find_repo_entry, get_all_repos, get_client, is_indexed, remove_repo
 
 console = Console()
 
@@ -91,12 +91,23 @@ def list_repos() -> None:
 def remove(path: str) -> None:
     """Remove a repo from the index."""
     abs_path = str(Path(path).resolve())
-    key = repo_key(abs_path)
-    config = load_config()
-    if key not in config:
-        console.print(f"[red]Not indexed: {abs_path}[/red]")
+    entry = find_repo_entry(abs_path)
+    if not entry:
+        other_branches = [
+            meta["branch"]
+            for meta in get_all_repos().values()
+            if meta.get("path") == abs_path and meta.get("branch")
+        ]
+        if other_branches:
+            console.print(
+                f"[red]Not indexed on current branch.[/red] Indexed on: {', '.join(other_branches)} "
+                f"— check out that branch and retry."
+            )
+        else:
+            console.print(f"[red]Not indexed: {abs_path}[/red]")
         raise SystemExit(1)
-    repo_id = config[key]["repo_id"]
+    _, meta = entry
+    repo_id = meta["repo_id"]
     client = get_client()
     if client.collection_exists(repo_id):
         client.delete_collection(repo_id)
