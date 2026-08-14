@@ -4,7 +4,7 @@ Vector search MCP server for codebases. Index repos locally with AST-aware chunk
 
 ## How it works
 
-1. **Index** — walks repo files, chunks them using tree-sitter AST (function/method boundaries) with line-based fallback, embeds via OpenAI-compatible API, stores in in-process Qdrant.
+1. **Index** — walks repo files, chunks them using tree-sitter AST (function/method boundaries) with line-based fallback, embeds via OpenAI-compatible API, stores in in-process Qdrant. Indexes are branch-aware: each git branch gets its own collection, so switching branches doesn't overwrite another branch's index.
 2. **Serve** — exposes 12 MCP tools over stdio for search, structural analysis, and persistent knowledge.
 3. **Search** — embeds the query, retrieves top-8 chunks across all indexed repos (or a specific one), returns ranked results with file path and line numbers.
 
@@ -333,7 +333,23 @@ All data lives in `~/.yacodebase-mcp/`:
   qdrant/          # Qdrant in-process storage (one collection per repo)
 ```
 
-Each repo gets a stable `repo_id` derived from its absolute path (used as Qdrant collection name). Reindexing replaces the collection in-place. Incremental updates (`yacodebase-mcp update`) use SHA256 hashes to skip unchanged files.
+Each repo gets a stable `repo_id` derived from its absolute path plus current git branch (`path#branch`, used as Qdrant collection name) — outside a git repo, or on detached HEAD, it falls back to the bare path. Reindexing replaces the collection in-place. Incremental updates (`yacodebase-mcp update`) use SHA256 hashes to skip unchanged files, scoped per branch.
+
+### Branches
+
+Indexing is branch-scoped: `yacodebase-mcp index`/`update` always target the branch currently checked out, and `search`/MCP tools only see whichever branches have been indexed. To keep multiple branches searchable at once, index each one after checking it out:
+
+```bash
+git checkout main
+yacodebase-mcp index ~/Code/myproject
+
+git checkout feature-x
+yacodebase-mcp index ~/Code/myproject
+```
+
+`yacodebase-mcp list` shows the branch each entry belongs to. `remove <path>` only removes the entry for the currently checked-out branch; if the repo is indexed under a different branch, it tells you which one instead of failing silently.
+
+If you use `git worktree` instead, each worktree already has its own directory (and thus its own `repo_id`) — no branch-suffix needed, it just works.
 
 ## OpenAI-compatible providers
 
