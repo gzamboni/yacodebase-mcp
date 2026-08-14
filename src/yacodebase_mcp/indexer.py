@@ -17,6 +17,7 @@ from .store import (
     get_repo_id,
     load_config,
     load_file_hashes,
+    repo_key,
     save_config,
     save_file_hashes,
 )
@@ -132,7 +133,7 @@ def _embed_batch(texts: list[str], client: OpenAI, model: str) -> list[list[floa
 def index_repo(repo_path: str) -> int:
     """Index a repo. Always replaces any existing index for this path."""
     abs_path = str(Path(repo_path).resolve())
-    repo_id = get_repo_id(abs_path)
+    repo_id = get_repo_id(repo_key(abs_path))
     settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
     qdrant = get_client(repo_path=abs_path)
@@ -176,7 +177,7 @@ def _file_sha256(path: Path) -> str:
 def index_repo_incremental(repo_path: str) -> int:
     """Index only changed/new files. Returns count of newly indexed chunks."""
     abs_path = str(Path(repo_path).resolve())
-    repo_id = get_repo_id(abs_path)
+    repo_id = get_repo_id(repo_key(abs_path))
     settings = get_settings(repo_path=abs_path)
     openai_client = OpenAI(api_key=settings.api_key, base_url=settings.api_base)
     qdrant = get_client(repo_path=abs_path)
@@ -240,8 +241,9 @@ def index_repo_incremental(repo_path: str) -> int:
         qdrant.upsert(collection_name=repo_id, points=points)
 
     config = load_config()
-    if abs_path in config:
-        config[abs_path]["last_indexed"] = datetime.now(timezone.utc).isoformat()
+    key = repo_key(abs_path)
+    if key in config:
+        config[key]["last_indexed"] = datetime.now(timezone.utc).isoformat()
         save_config(config)
     else:
         add_repo(abs_path, len(all_new_chunks))

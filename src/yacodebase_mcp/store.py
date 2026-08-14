@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,6 +41,29 @@ def get_repo_id(repo_path: str) -> str:
     return hashlib.md5(repo_path.encode()).hexdigest()[:16]
 
 
+def get_current_branch(repo_path: str) -> str | None:
+    """Return current git branch name for repo_path, or None if not a git repo/detached HEAD."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", repo_path, "symbolic-ref", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    branch = result.stdout.strip()
+    return branch or None
+
+
+def repo_key(repo_path: str) -> str:
+    """Config/collection key for repo_path — branch-qualified when inside a git repo."""
+    branch = get_current_branch(repo_path)
+    return f"{repo_path}#{branch}" if branch else repo_path
+
+
 def get_client(repo_path: str | None = None) -> QdrantClient:
     from .settings import load_settings
 
@@ -68,13 +92,16 @@ def save_config(config: dict) -> None:
 
 
 def is_indexed(repo_path: str) -> bool:
-    return repo_path in load_config()
+    return repo_key(repo_path) in load_config()
 
 
 def add_repo(repo_path: str, chunk_count: int) -> None:
     config = load_config()
-    config[repo_path] = {
-        "repo_id": get_repo_id(repo_path),
+    key = repo_key(repo_path)
+    config[key] = {
+        "repo_id": get_repo_id(key),
+        "path": repo_path,
+        "branch": get_current_branch(repo_path),
         "last_indexed": datetime.now(timezone.utc).isoformat(),
         "chunk_count": chunk_count,
     }
@@ -82,9 +109,9 @@ def add_repo(repo_path: str, chunk_count: int) -> None:
 
 
 def remove_repo(repo_path: str) -> None:
-    """Remove repo from config.json. Caller must delete the Qdrant collection separately."""
+    """Remove repo (current branch). Caller must delete the Qdrant collection separately."""
     config = load_config()
-    config.pop(repo_path, None)
+    config.pop(repo_key(repo_path), None)
     save_config(config)
 
 
@@ -102,15 +129,16 @@ def ensure_collection(client: QdrantClient, repo_id: str, vector_size: int) -> N
 
 
 def save_file_hashes(repo_path: str, hashes: dict[str, str]) -> None:
-    """Save per-file SHA256 hashes for a repo into config.json."""
+    """Save per-file SHA256 hashes for a repo (current branch) into config.json."""
     config = load_config()
-    if repo_path not in config:
+    key = repo_key(repo_path)
+    if key not in config:
         return
-    config[repo_path]["file_hashes"] = hashes
+    config[key]["file_hashes"] = hashes
     save_config(config)
 
 
 def load_file_hashes(repo_path: str) -> dict[str, str]:
-    """Load per-file SHA256 hashes for a repo from config.json."""
+    """Load per-file SHA256 hashes for a repo (current branch) from config.json."""
     config = load_config()
-    return config.get(repo_path, {}).get("file_hashes", {})
+    return config.get(repo_key(repo_path), {}).get("file_hashes", {})

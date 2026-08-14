@@ -12,7 +12,7 @@ from .knowledge import add_note as _add_note
 from .knowledge import get_notes as _get_notes
 from .knowledge import search_decisions as _search_decisions
 from .knowledge import update_decision as _update_decision
-from .store import get_all_repos
+from .store import get_all_repos, repo_key
 
 mcp = FastMCP("codebase-search")
 
@@ -34,10 +34,14 @@ def list_indexed_repos() -> str:
     repos = get_all_repos()
     if not repos:
         return "No repos indexed. Run: yacodebase-mcp index /path/to/repo"
-    lines = [
-        f"- {path}  ({meta['chunk_count']} chunks, indexed {meta['last_indexed']})"
-        for path, meta in repos.items()
-    ]
+    lines = []
+    for key, meta in repos.items():
+        branch = meta.get("branch")
+        suffix = f" [{branch}]" if branch else ""
+        lines.append(
+            f"- {meta.get('path', key)}{suffix}  ({meta['chunk_count']} chunks, "
+            f"indexed {meta['last_indexed']})"
+        )
     return "\n".join(lines)
 
 
@@ -57,7 +61,8 @@ def search_symbols(name: str, repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        candidates = {abs_path: config[abs_path]} if abs_path in config else {}
+        key = repo_key(abs_path)
+        candidates = {key: config[key]} if key in config else {}
     else:
         candidates = config
 
@@ -113,7 +118,8 @@ def find_todos(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        candidates = {abs_path: config[abs_path]} if abs_path in config else {}
+        key = repo_key(abs_path)
+        candidates = {key: config[key]} if key in config else {}
     else:
         candidates = config
 
@@ -121,7 +127,8 @@ def find_todos(repo_path: str | None = None) -> str:
         return f"Repo not indexed: {repo_path}"
 
     found: list[str] = []
-    for path in candidates:
+    for key, meta in candidates.items():
+        path = meta.get("path", key)
         for filepath in iter_files(Path(path)):
             try:
                 text = filepath.read_text(encoding="utf-8", errors="ignore")
@@ -182,7 +189,8 @@ def what_changed(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        candidates = {abs_path: config[abs_path]} if abs_path in config else {}
+        key = repo_key(abs_path)
+        candidates = {key: config[key]} if key in config else {}
     else:
         candidates = config
 
@@ -190,7 +198,8 @@ def what_changed(repo_path: str | None = None) -> str:
         return f"Repo not indexed: {repo_path}"
 
     parts: list[str] = []
-    for path, meta in candidates.items():
+    for key, meta in candidates.items():
+        path = meta.get("path", key)
         last_indexed = datetime.fromisoformat(meta["last_indexed"])
         if last_indexed.tzinfo is None:
             last_indexed = last_indexed.replace(tzinfo=timezone.utc)
@@ -311,7 +320,8 @@ def session_bootstrap(repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        candidates = {abs_path: config[abs_path]} if abs_path in config else {}
+        key = repo_key(abs_path)
+        candidates = {key: config[key]} if key in config else {}
     else:
         candidates = config
 
@@ -319,14 +329,17 @@ def session_bootstrap(repo_path: str | None = None) -> str:
         return f"Repo not indexed: {repo_path}"
 
     repo_lines = ["## Indexed Repos"]
-    for path, meta in candidates.items():
+    for key, meta in candidates.items():
+        branch = f" [{meta['branch']}]" if meta.get("branch") else ""
         repo_lines.append(
-            f"  {path}  —  {meta['chunk_count']} chunks, last indexed {meta['last_indexed'][:19]}"
+            f"  {meta.get('path', key)}{branch}  —  {meta['chunk_count']} chunks, "
+            f"last indexed {meta['last_indexed'][:19]}"
         )
     sections.append("\n".join(repo_lines))
 
     changed_parts: list[str] = []
-    for path, meta in candidates.items():
+    for key, meta in candidates.items():
+        path = meta.get("path", key)
         last_indexed = datetime.fromisoformat(meta["last_indexed"])
         if last_indexed.tzinfo is None:
             last_indexed = last_indexed.replace(tzinfo=timezone.utc)

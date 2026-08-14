@@ -3,7 +3,7 @@ from pathlib import Path
 from openai import OpenAI
 
 from .settings import get_settings
-from .store import get_client, load_config
+from .store import get_client, load_config, repo_key
 
 TOP_K = 8
 
@@ -13,9 +13,10 @@ def search(query: str, repo_path: str | None = None) -> str:
 
     if repo_path:
         abs_path = str(Path(repo_path).resolve())
-        if abs_path not in config:
+        key = repo_key(abs_path)
+        if key not in config:
             return f"Repo not indexed. Run: yacodebase-mcp index {repo_path}"
-        candidates = {abs_path: config[abs_path]}
+        candidates = {key: config[key]}
     else:
         if not config:
             return "No repos indexed. Run: yacodebase-mcp index /path/to/repo"
@@ -26,8 +27,9 @@ def search(query: str, repo_path: str | None = None) -> str:
     warnings: list[str] = []
     valid_candidates: list[tuple[str, str]] = []  # (path, repo_id)
 
-    for path, meta in candidates.items():
+    for key, meta in candidates.items():
         repo_id = meta["repo_id"]
+        display_path = meta.get("path", key)
         try:
             info = qdrant.get_collection(repo_id)
             actual_size = info.config.params.vectors.size
@@ -35,12 +37,12 @@ def search(query: str, repo_path: str | None = None) -> str:
             continue
         if actual_size != settings.vector_size:
             warnings.append(
-                f"⚠ Vector size mismatch for {path}: "
+                f"⚠ Vector size mismatch for {display_path}: "
                 f"indexed with {actual_size}, current model expects {settings.vector_size}. "
-                f"Run: yacodebase-mcp reindex {path}"
+                f"Run: yacodebase-mcp reindex {display_path}"
             )
             continue
-        valid_candidates.append((path, repo_id))
+        valid_candidates.append((key, repo_id))
 
     warning_text = "\n".join(warnings)
 

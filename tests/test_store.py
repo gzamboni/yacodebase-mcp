@@ -14,6 +14,54 @@ def test_get_repo_id_is_stable():
     assert get_repo_id("/some/path") != get_repo_id("/other/path")
 
 
+def test_repo_key_is_branch_qualified_for_git_repos(tmp_path):
+    import subprocess
+
+    from yacodebase_mcp.store import repo_key
+
+    repo = tmp_path / "gitrepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "main"], check=True)
+    key_main = repo_key(str(repo))
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "feature"], check=True)
+    key_feature = repo_key(str(repo))
+
+    assert key_main == f"{repo}#main"
+    assert key_feature == f"{repo}#feature"
+    assert key_main != key_feature
+
+
+def test_repo_key_falls_back_to_path_for_non_git_dirs(tmp_path):
+    from yacodebase_mcp.store import repo_key
+
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    assert repo_key(str(plain)) == str(plain)
+
+
+def test_add_repo_isolates_index_per_branch(tmp_path):
+    import subprocess
+
+    from yacodebase_mcp.store import add_repo, get_all_repos, is_indexed
+
+    repo = tmp_path / "gitrepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "main"], check=True)
+    add_repo(str(repo), chunk_count=1)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "-b", "feature"], check=True)
+
+    assert not is_indexed(str(repo))
+    add_repo(str(repo), chunk_count=2)
+    assert is_indexed(str(repo))
+
+    repos = get_all_repos()
+    assert len(repos) == 2
+    branches = {meta["branch"] for meta in repos.values()}
+    assert branches == {"main", "feature"}
+
+
 def test_config_roundtrip(tmp_path):
     from yacodebase_mcp.store import add_repo, is_indexed, load_config
 
